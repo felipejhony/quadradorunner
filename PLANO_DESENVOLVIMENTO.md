@@ -28,7 +28,7 @@ Um jogo 2D de plataforma com fases rejogáveis, argolas douradas coletáveis e h
 | Etapa | Status | Entrega / critério de aceite |
 |---|---|---|
 | 01 | OK | Inventário técnico: localizar classes de jogo, fases, colisão, coleta, power-ups e testes. Registrar arquitetura atual abaixo, **sem mudar comportamento**. |
-| 02 | PENDENTE | Modelo de progresso: `GameProgress` (ou equivalente) com saldo, IDs de argolas coletadas, habilidades desbloqueadas e identificadores de fases. Testes sem interface gráfica. |
+| 02 | OK | Modelo de progresso: `GameProgress` (ou equivalente) com saldo, IDs de argolas coletadas, habilidades desbloqueadas e identificadores de fases. Testes sem interface gráfica. |
 | 03 | PENDENTE | Persistência local: salvar/carregar progresso com tratamento de arquivo ausente/corrompido, gravação segura e teste de reinício. Versionar formato. |
 | 04 | PENDENTE | Argolas nas fases: entidades com IDs estáveis e únicos por fase, renderização e colisão; argolas já coletadas não aparecem. Testar coleta única. |
 | 05 | PENDENTE | Economia: atualizar saldo **uma vez por argola**, mantê-lo entre fases e reinícios; testar replay e múltiplas visitas. |
@@ -46,6 +46,17 @@ _Ao terminar ou encontrar bloqueio, adicione uma linha:_
 | Data | Etapa | Resultado | Evidência (testes/arquivos) | Observações |
 |---|---|---|---|---|
 | 2026-10-31 | 01 | OK — inventário técnico concluído; arquitetura e testes registrados abaixo. | Inspeção de `src/main/java/br/com/quadradorunner`, `src/test/java/br/com/quadradorunner`, `pom.xml`, `README.md` e `.gitignore`; execução de `mvn test` pelo Maven local: 21 testes, 0 falhas, 0 erros, 0 ignorados, BUILD SUCCESS. Relatórios em `target/surefire-reports`. | Apenas documentação; nenhum código, teste ou comportamento alterado. Argolas, progresso permanente e saves ainda não existem. Avisos de áudio durante os testes são falhas de dispositivo simuladas intencionalmente. Etapas 02–12 mantidas PENDENTE. `AGENTS.md` incluído no versionamento conforme instrução do plano, sem alteração de conteúdo. |
+| 2026-10-31 | 02 | OK — modelo de progresso imutável implementado e validado sem interface gráfica. | Novos `src/main/java/br/com/quadradorunner/GameProgress.java` e `src/test/java/br/com/quadradorunner/GameProgressTest.java`; execução do mesmo comando Maven registrado na etapa 01: 30 testes aprovados (9 novos), 0 falhas, 0 erros, 0 ignorados, BUILD SUCCESS. Relatórios em `target/surefire-reports`. | Saldo não negativo, identidade de argola pelo par de IDs, habilidades e IDs de fases concluídas; conjuntos defensivamente copiados e imutáveis, IDs não nulos/não brancos. Modelo isolado, sem alteração da partida ou do salto duplo. Persistência, economia e integração de argolas não implementadas; etapas 03–12 mantidas PENDENTE. |
+
+## Modelo de progresso (etapa 02)
+
+- `GameProgress` é um `record` com acesso de pacote, seguindo a visibilidade dos modelos existentes. Representa um snapshot em memória, sem dependência de Swing, AWT, áudio ou armazenamento. O construtor sem argumentos cria progresso com saldo zero e todos os conjuntos vazios; o construtor completo permite representar um snapshot existente.
+- Campos: `balance` (`int` não negativo), `collectedRings` (`Set<RingId>`), `unlockedAbilities` (`Set<Ability>`) e `completedLevelIds` (`Set<String>`). O saldo é armazenado separadamente do histórico de coleta, pois futuramente compras reduzirão o saldo sem restaurar argolas.
+- `RingId` é um record aninhado com `levelId` e `ringId`. A igualdade considera os dois campos, evitando colisões por concatenação e distinguindo argolas com o mesmo ID local em fases diferentes. IDs são sensíveis a maiúsculas/minúsculas, preservados literalmente e rejeitam `null`, vazio ou apenas espaços em branco. Nenhum ID foi atribuído ao mapa atual nesta etapa.
+- `Ability` é um enum aninhado com `DASH` e `GLIDE`, apenas identificadores de habilidades permanentes; não implementa movimento, desbloqueio ou compra. O salto duplo temporário dos cristais permanece independente e sem alterações.
+- Os identificadores de fases desta etapa representam fases concluídas e o escopo das argolas. Catálogo, fase atual, seleção e regras de acesso ficam para as etapas correspondentes; não é inferido desbloqueio por ordem ou nome do ID.
+- `Set.copyOf()` rejeita coleções/elementos nulos, isola o modelo das coleções recebidas e impede modificações pelos accessors. A ordem dos elementos não possui significado. Não há setters nem operações de coleta, crédito, débito ou compra nesta etapa; essas regras e sua integração pertencem às etapas futuras.
+- Os nove testes de `GameProgressTest` verificam estado inicial, representação completa, saldo separado do histórico, identidade composta, cópias defensivas, coleções imutáveis, valores inválidos e igualdade de snapshots. Nenhuma janela ou arquivo de save é criado. A suíte completa passou com 30 testes; os avisos de áudio são esperados nos testes que simulam falhas de dispositivo.
 
 ## Arquitetura atual (inventário da etapa 01)
 
