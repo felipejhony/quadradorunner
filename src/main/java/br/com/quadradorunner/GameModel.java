@@ -18,6 +18,8 @@ final class GameModel {
     final Level level;
     final boolean[] collected;
     private GameProgress progress;
+    private int ringsCollectedThisAttempt;
+    record LevelSummary(String levelId, int newRings, int totalBalance) { }
     double powerRemaining;
     int jumpsUsed;
     State state = State.READY;
@@ -37,6 +39,11 @@ final class GameModel {
     }
 
     GameProgress progress() { return progress; }
+
+    LevelSummary levelSummary() {
+        if (state != State.WON) throw new IllegalStateException("The level has not been completed");
+        return new LevelSummary(level.id, ringsCollectedThisAttempt, progress.balance());
+    }
 
     boolean isRingCollected(Ring ring) {
         return progress.collectedRings().contains(new GameProgress.RingId(level.id, ring.id()));
@@ -64,6 +71,7 @@ final class GameModel {
         grounded = true;
         jumpsUsed = 0;
         powerRemaining = 0;
+        ringsCollectedThisAttempt = 0;
         java.util.Arrays.fill(collected, false);
         state = State.READY;
     }
@@ -104,7 +112,15 @@ final class GameModel {
                 }
             }
         }
-        if (state == State.RUNNING && x >= FINISH) state = State.WON;
+        if (state == State.RUNNING && x >= FINISH) {
+            state = State.WON;
+            if (!progress.completedLevelIds().contains(level.id)) {
+                var completed = new HashSet<>(progress.completedLevelIds());
+                completed.add(level.id);
+                progress = new GameProgress(progress.balance(), progress.collectedRings(),
+                    progress.unlockedAbilities(), completed);
+            }
+        }
     }
 
     private void collectRings(Rectangle2D player) {
@@ -115,6 +131,7 @@ final class GameModel {
                 rings.add(new GameProgress.RingId(level.id, ring.id()));
                 progress = new GameProgress(progress.balance() + 1, rings,
                     progress.unlockedAbilities(), progress.completedLevelIds());
+                ringsCollectedThisAttempt++;
             }
         }
     }

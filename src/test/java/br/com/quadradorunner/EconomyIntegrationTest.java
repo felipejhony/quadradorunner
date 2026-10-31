@@ -58,7 +58,12 @@ class EconomyIntegrationTest {
         for (Level revisit : List.of(b, a, b, a)) {
             GameModel model = running(revisit, saved);
             runToFinish(model);
-            assertSame(saved, model.progress());
+            assertEquals(saved.balance(), model.progress().balance());
+            assertEquals(saved.collectedRings(), model.progress().collectedRings());
+            assertEquals(saved.unlockedAbilities(), model.progress().unlockedAbilities());
+            var completed = new java.util.HashSet<>(saved.completedLevelIds());
+            completed.add(revisit.id);
+            assertEquals(completed, model.progress().completedLevelIds());
             saved = checkpoint(model.progress());
         }
         assertEquals(Set.of(new GameProgress.RingId("a", "shared"),

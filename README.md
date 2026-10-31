@@ -35,7 +35,8 @@ java -cp target/classes br.com.quadradorunner.Main
 |---|---|
 | Espaço ou seta para cima | Começar / pular |
 | P ou Esc | Pausar / continuar |
-| R | Reiniciar a fase |
+| R | Reiniciar / rejogar a fase atual |
+| Enter | Avançar após a vitória, quando houver próxima fase |
 | M | Silenciar / reativar música e efeitos |
 
 Solte todas as teclas de pulo antes de pressionar novamente para cada salto. Comandos ignoram a repetição automática do teclado. Ao perder o foco da janela, a partida pausa e limpa as teclas pressionadas; pressione P ou Esc para continuar. O pulo está um pouco mais alto para facilitar a corrida. Colete os cristais azuis com o número **2** para liberar um segundo salto no ar por **10 segundos**. Cada pouso renova os dois saltos enquanto o efeito estiver ativo. Um novo cristal renova a duração para 10 segundos; a pausa congela esse tempo. O indicador superior mostra a duração restante e os saltos disponíveis. Reiniciar restaura os cristais e remove o efeito.
@@ -50,11 +51,18 @@ O aplicativo carrega e salva automaticamente um slot em `${user.home}/.quadrado-
 
 A loja, as compras e a exibição do saldo no HUD serão implementadas nas etapas seguintes do plano.
 
+## Final de fase
+
+Ao chegar à bandeira, o jogo mostra as **argolas novas coletadas naquela tentativa** e o **saldo total**. A conclusão é registrada no mesmo save, sem conceder recompensa adicional: as argolas já foram creditadas na coleta.
+
+Use **R** para rejogar a fase atual. O contador da tentativa volta a zero, mantendo o saldo e as argolas permanentemente coletadas. Quando houver uma próxima fase na sequência, **Enter** avança para ela com o mesmo progresso, iniciando em estado de espera. A distribuição atual contém uma única fase; nesse caso, a tela informa que todas as fases disponíveis foram concluídas e oferece o replay. Novas fases e a seleção livre serão adicionadas nas etapas correspondentes do plano.
+
 ## Organização
 
 - `Main.java`: cria a janela na EDT e encaminha perda de foco.
 - `GamePanel.java`: adapta entrada e timer do Swing; desenha mundo, câmera e HUD.
 - `GameModel.java`: estado, movimentação, saltos, colisões e power-ups, sem dependência de Swing.
+- `GameSession.java`: sequência de fases, replay e avanço com preservação do progresso.
 - `Ring.java`: identidade local, posição e colisão das argolas.
 - `GameProgress.java`: snapshot imutável de saldo, argolas, habilidades e fases concluídas.
 - `GameProgressStore.java`: persistência local versionada com gravação atômica.

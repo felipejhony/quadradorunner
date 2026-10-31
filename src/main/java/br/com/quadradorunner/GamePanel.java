@@ -44,7 +44,8 @@ public final class GamePanel extends JPanel {
     private static final Font OVERLAY_TITLE = new Font(Font.SANS_SERIF, Font.BOLD, 42);
     private static final Font OVERLAY_SUBTITLE = new Font(Font.SANS_SERIF, Font.PLAIN, 17);
     private static final Font OVERLAY_HINT = new Font(Font.SANS_SERIF, Font.BOLD, 18);
-    private final GameModel model;
+    private GameModel model;
+    private final GameSession session;
     private final Supplier<GameAudio> audioFactory;
     private final Consumer<GameProgress> progressChanged;
     private GameAudio audio;
@@ -69,16 +70,24 @@ public final class GamePanel extends JPanel {
     }
 
     GamePanel(GameModel model, Supplier<GameAudio> audioFactory, Consumer<GameProgress> progressChanged) {
-        this.model = model;
+        this(new GameSession(model), audioFactory, progressChanged);
+    }
+
+    GamePanel(GameSession session, Supplier<GameAudio> audioFactory, Consumer<GameProgress> progressChanged) {
+        this.session = session;
+        this.model = session.current();
         this.audioFactory = audioFactory;
         this.progressChanged = progressChanged;
         setPreferredSize(new Dimension(WIDTH, HEIGHT));
         setBackground(new Color(13, 22, 39));
         bindKey("SPACE", GameInput.Key.SPACE, this::jump);
         bindKey("UP", GameInput.Key.UP, this::jump);
-        bindKey("R", GameInput.Key.RESTART, model::restart);
-        bindKey("P", GameInput.Key.PAUSE, model::togglePause);
-        bindKey("ESCAPE", GameInput.Key.ESCAPE, model::togglePause);
+        bindKey("R", GameInput.Key.RESTART, session::replay);
+        bindKey("ENTER", GameInput.Key.ADVANCE, () -> {
+            if (session.advance()) model = session.current();
+        });
+        bindKey("P", GameInput.Key.PAUSE, () -> model.togglePause());
+        bindKey("ESCAPE", GameInput.Key.ESCAPE, () -> model.togglePause());
         bindKey("M", GameInput.Key.MUTE, () -> muted = !muted);
         timer = new Timer(16, event -> tick());
         timer.setCoalesce(true);
@@ -172,7 +181,8 @@ public final class GamePanel extends JPanel {
         int collectedBefore = collectedCount();
         GameProgress previousProgress = model.progress();
         model.update(dt);
-        if (collectedCount() > collectedBefore || model.progress() != previousProgress) {
+        if (collectedCount() > collectedBefore
+                || model.progress().collectedRings().size() > previousProgress.collectedRings().size()) {
             play(GameAudio.Effect.COLLECT);
         }
         if (model.progress() != previousProgress) progressChanged.accept(model.progress());
@@ -201,7 +211,7 @@ public final class GamePanel extends JPanel {
                 case READY -> overlay(g, "QUADRADO RUNNER", "Pegue os cristais azuis: salto duplo por 10 segundos!", "ESPAÇO ou ↑ para começar e pular");
                 case PAUSED -> overlay(g, "PAUSA", "Respire. A pista espera por você.", "P ou ESC para continuar");
                 case LOST -> overlay(g, "QUASE LÁ!", "Você bateu em um obstáculo. Tente pular um pouco antes.", "R para tentar novamente");
-                case WON -> overlay(g, "SUCESSO!", "Você chegou ao fim do mapa. Boa corrida!", "R para jogar novamente");
+                case WON -> drawLevelSummary(g);
                 default -> { }
             }
         } finally { g.dispose(); }
@@ -325,12 +335,35 @@ public final class GamePanel extends JPanel {
         g.setColor(OVERLAY_SHADE);
         g.fillRect(0, 65, WIDTH, 410);
         g.setColor(ACCENT);
-        centered(g, "01 / A PISTA", 182, OVERLAY_LABEL);
+        centered(g, levelLabel(), 182, OVERLAY_LABEL);
         g.setColor(INK);
         centered(g, title, 242, OVERLAY_TITLE);
         centered(g, subtitle, 283, OVERLAY_SUBTITLE);
         g.setColor(ACCENT);
         centered(g, hint, 339, OVERLAY_HINT);
+    }
+
+    private String levelLabel() {
+        return "FASE " + session.levelNumber() + " / " + session.levelCount();
+    }
+
+    private void drawLevelSummary(Graphics2D g) {
+        GameModel.LevelSummary summary = model.levelSummary();
+        g.setColor(OVERLAY_SHADE);
+        g.fillRect(0, 65, WIDTH, 410);
+        g.setColor(ACCENT);
+        centered(g, levelLabel(), 148, OVERLAY_LABEL);
+        g.setColor(INK);
+        centered(g, "FASE CONCLUÍDA!", 210, OVERLAY_TITLE);
+        centered(g, "Argolas novas nesta tentativa: " + summary.newRings(), 267, OVERLAY_SUBTITLE);
+        g.setColor(RING_GOLD);
+        centered(g, "Saldo total: " + summary.totalBalance() + " argola(s)", 308, OVERLAY_HINT);
+        g.setColor(ACCENT);
+        centered(g, session.canAdvance() ? "R para rejogar     ENTER para avançar" : "R para rejogar",
+            365, OVERLAY_HINT);
+        g.setColor(INK);
+        centered(g, session.canAdvance() ? "Seu progresso acompanha você na próxima fase."
+            : "Todas as fases disponíveis foram concluídas.", 410, OVERLAY_SUBTITLE);
     }
 
     private void centered(Graphics2D g, String text, int baseline, Font font) {
