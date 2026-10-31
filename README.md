@@ -52,7 +52,7 @@ A pista possui 12 argolas douradas. Encoste no disco de uma argola para coletá-
 
 O aplicativo carrega e salva automaticamente um slot em `${user.home}/.quadrado-runner/progress.properties`. As gravações acontecem fora da thread da interface, usando o formato versionado e a substituição atômica existentes. Fechar normalmente aguarda a gravação final; evite encerrar o processo à força enquanto salva. Se houver falha ao salvar, o jogo mantém o progresso em memória e permite repetir a tentativa ao fechar novamente. Saves inválidos ou de versão incompatível são preservados e informados ao carregar, sem começar silenciosamente do zero.
 
-A loja exibe o saldo disponível entre fases; a exibição durante a corrida será refinada nas etapas seguintes do plano.
+O HUD mostra o saldo e a contagem de argolas já coletadas na fase (por exemplo, **12/12**). Quando todas já foram coletadas no save, elas permanecem ausentes e a tela inicial informa esse motivo. Se a coleta estiver parcial, a tela inicial mostra quantas ainda restam. Esse contador representa o histórico permanente da fase; o resumo final mostra separadamente as argolas novas da tentativa.
 
 ## Loja entre fases
 

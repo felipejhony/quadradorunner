@@ -233,7 +233,7 @@ public final class GamePanel extends JPanel {
             drawWorld(g);
             drawHud(g);
             switch (model.state) {
-                case READY -> overlay(g, "QUADRADO RUNNER", "Pegue os cristais azuis: salto duplo por 10 segundos!", "ESPAÇO ou ↑ para começar e pular");
+                case READY -> overlay(g, "QUADRADO RUNNER", readyMessage(), "ESPAÇO ou ↑ para começar e pular");
                 case PAUSED -> overlay(g, "PAUSA", "Respire. A pista espera por você.", "P ou ESC para continuar");
                 case LOST -> overlay(g, "QUASE LÁ!", "Você bateu em um obstáculo. Tente pular um pouco antes.", "R para tentar novamente");
                 case WON -> {
@@ -352,6 +352,10 @@ public final class GamePanel extends JPanel {
         g.setFont(CONTROLS_FONT);
         g.drawString("ESPAÇO / ↑  pular     D  dash     P / ESC  pausar     R  reiniciar", 28, 511);
         g.drawString(muted ? "M  som: desligado" : "M  som: ligado", 785, 511);
+        g.setColor(RING_GOLD);
+        g.drawString("ARGOLAS COLETADAS  " + model.collectedRingCount() + "/" + model.level.rings.size(), 420, 32);
+        g.drawString("SALDO  " + model.progress().balance(), 420, 55);
+        g.setColor(INK);
         double progress = Math.max(0, Math.min(1, (model.x - GameModel.START_X) / (FINISH - GameModel.START_X)));
         g.drawString("CHEGADA  " + (int) (progress * 100) + "%", 720, 32);
         g.setColor(PROGRESS_TRACK);
@@ -376,6 +380,18 @@ public final class GamePanel extends JPanel {
             dashStatus = "D  DASH pronto";
         }
         g.drawString(dashStatus, 28, 90);
+    }
+
+    private String readyMessage() {
+        int total = model.level.rings.size();
+        int collected = model.collectedRingCount();
+        if (total > 0 && collected == total) {
+            return "As " + total + " argolas desta fase já foram coletadas neste save.";
+        }
+        if (collected > 0) {
+            return "Restam " + (total - collected) + " argola(s) nesta fase. As coletadas permanecem salvas.";
+        }
+        return "Pegue os cristais azuis: salto duplo por 10 segundos!";
     }
 
     private void overlay(Graphics2D g, String title, String subtitle, String hint) {

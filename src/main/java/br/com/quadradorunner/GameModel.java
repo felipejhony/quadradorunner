@@ -76,6 +76,12 @@ final class GameModel {
         return progress.collectedRings().contains(new GameProgress.RingId(level.id, ring.id()));
     }
 
+    int collectedRingCount() {
+        int count = 0;
+        for (Ring ring : level.rings) if (isRingCollected(ring)) count++;
+        return count;
+    }
+
     void pause() {
         if (state == State.RUNNING) state = State.PAUSED;
     }
