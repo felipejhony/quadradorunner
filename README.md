@@ -34,6 +34,7 @@ java -cp target/classes br.com.quadradorunner.Main
 | Tecla | Ação |
 |---|---|
 | Espaço ou seta para cima | Começar / pular |
+| D | Dash, após comprar a habilidade |
 | P ou Esc | Pausar / continuar |
 | R | Reiniciar / rejogar a fase atual |
 | Enter | Avançar após a vitória, quando houver próxima fase |
@@ -59,7 +60,13 @@ Após concluir uma fase, pressione **B** no resumo para abrir a loja. O catálog
 
 Cada compra é permanente, debita o preço uma única vez e é salva automaticamente. Compras repetidas ou sem saldo são recusadas, preservando o progresso; gastar não restaura argolas já coletadas. A loja também funciona depois da última fase disponível. Saia da loja para usar Enter e avançar quando houver uma próxima fase.
 
-Esta etapa registra os desbloqueios; os movimentos de Dash e Planar serão implementados nas etapas 08 e 09. O salto duplo dos cristais continua funcionando independentemente das compras.
+Após comprar Dash, use **D** durante a corrida para ativá-lo. O movimento de Planar será implementado na etapa 09. O salto duplo dos cristais continua funcionando independentemente das compras.
+
+## Dash
+
+O dash acelera horizontalmente para **780 px/s durante 0,2 segundo**, no chão ou no ar. A recarga é de **1,2 segundo a partir da ativação**. Solte e pressione D novamente para cada impulso; manter a tecla pressionada não ativa outro dash ao terminar a recarga. A habilidade só pode ser usada durante a corrida e depois da compra permanente na loja.
+
+O indicador mostra bloqueio, disponibilidade, ativação e recarga, e o jogador deixa um rastro roxo enquanto acelera. O dash mantém a gravidade e os limites de salto: obstáculos continuam causando derrota. A colisão e a coleta são verificadas em subpassos com deslocamento horizontal de até 2 px durante o impulso. A pausa e a perda de foco congelam seus temporizadores; reiniciar a fase ou carregar outra começa com dash pronto, preservando a compra. Apenas o desbloqueio é salvo, não a duração ou a recarga de uma tentativa.
 
 ## Final de fase
 

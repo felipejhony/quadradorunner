@@ -15,6 +15,7 @@ public final class GamePanel extends JPanel {
     static final int HEIGHT = 540;
     private static final int CAMERA_ANCHOR = 210;
     private static final int FINISH_MARGIN = 230;
+    private static final double TIMER_DISPLAY_EPSILON = 1e-9;
     private static final Color INK = new Color(225, 237, 247);
     private static final Color SKY_TOP = new Color(14, 23, 43);
     private static final Color SKY_BOTTOM = new Color(29, 54, 76);
@@ -29,6 +30,8 @@ public final class GamePanel extends JPanel {
     private static final Color CRYSTAL = new Color(104, 202, 255);
     private static final Color RING_GOLD = new Color(255, 206, 76);
     private static final Color RING_HIGHLIGHT = new Color(255, 246, 190);
+    private static final Color DASH_COLOR = new Color(181, 157, 255);
+    private static final Color DASH_TRAIL = new Color(181, 157, 255, 90);
     private static final Stroke RING_STROKE = new BasicStroke(4);
     private static final Color FLAG_DARK = new Color(30, 45, 62);
     private static final Color PLAYER_GLOW = new Color(104, 202, 255, 100);
@@ -83,6 +86,7 @@ public final class GamePanel extends JPanel {
         setBackground(new Color(13, 22, 39));
         bindKey("SPACE", GameInput.Key.SPACE, this::jump);
         bindKey("UP", GameInput.Key.UP, this::jump);
+        bindKey("D", GameInput.Key.DASH, () -> model.dash());
         bindKey("R", GameInput.Key.RESTART, session::replay);
         bindKey("ENTER", GameInput.Key.ADVANCE, () -> {
             if (session.advance()) model = session.current();
@@ -303,13 +307,19 @@ public final class GamePanel extends JPanel {
             }
         }
         int px = (int) model.x;
+        if (model.isDashing()) {
+            g.setColor(DASH_TRAIL);
+            for (int i = 1; i <= 3; i++) {
+                g.fillRoundRect(px - i * 15, (int) model.y + i * 3, SIZE, SIZE - i * 6, 7, 7);
+            }
+        }
         if (model.powerRemaining > 0) {
             g.setColor(PLAYER_GLOW);
             g.fillRoundRect(px - 5, (int) model.y - 5, SIZE + 10, SIZE + 10, 12, 12);
         }
         g.setColor(SHADOW);
         g.fillOval(px - 4, GROUND - 7, SIZE + 8, 12);
-        g.setColor(ACCENT);
+        g.setColor(model.isDashing() ? DASH_COLOR : ACCENT);
         g.fillRoundRect(px, (int) model.y, SIZE, SIZE, 7, 7);
         g.setColor(PLAYER_FACE);
         g.fillRect(px + 22, (int) model.y + 9, 5, 6);
@@ -340,7 +350,7 @@ public final class GamePanel extends JPanel {
         g.setFont(TITLE_FONT);
         g.drawString("QUADRADO / RUNNER", 28, 36);
         g.setFont(CONTROLS_FONT);
-        g.drawString("ESPAÇO / ↑  pular     P / ESC  pausar     R  reiniciar", 28, 511);
+        g.drawString("ESPAÇO / ↑  pular     D  dash     P / ESC  pausar     R  reiniciar", 28, 511);
         g.drawString(muted ? "M  som: desligado" : "M  som: ligado", 785, 511);
         double progress = Math.max(0, Math.min(1, (model.x - GameModel.START_X) / (FINISH - GameModel.START_X)));
         g.drawString("CHEGADA  " + (int) (progress * 100) + "%", 720, 32);
@@ -353,6 +363,19 @@ public final class GamePanel extends JPanel {
         g.drawString(model.powerRemaining > 0
             ? "SALTO DUPLO  " + (int) Math.ceil(model.powerRemaining) + "s  •  " + (2 - model.jumpsUsed) + " salto(s) disponível(is)"
             : "◆ Cristal azul = salto duplo por 10s", 28, 65);
+        g.setColor(DASH_COLOR);
+        String dashStatus;
+        if (!model.progress().unlockedAbilities().contains(GameProgress.Ability.DASH)) {
+            dashStatus = "DASH bloqueado • disponível na loja por " + AbilityShop.Item.DASH.price + " argolas";
+        } else if (model.isDashing()) {
+            dashStatus = "DASH ativo";
+        } else if (model.dashCooldownRemaining() > 0) {
+            dashStatus = "DASH recarregando: "
+                + Math.ceil(model.dashCooldownRemaining() * 10 - TIMER_DISPLAY_EPSILON) / 10 + "s";
+        } else {
+            dashStatus = "D  DASH pronto";
+        }
+        g.drawString(dashStatus, 28, 90);
     }
 
     private void overlay(Graphics2D g, String title, String subtitle, String hint) {
@@ -400,7 +423,7 @@ public final class GamePanel extends JPanel {
         g.setColor(RING_GOLD);
         centered(g, "Saldo: " + model.progress().balance() + " argola(s)", 203, OVERLAY_HINT);
         g.setColor(INK);
-        centered(g, "Desbloqueios permanentes; movimentos nas próximas atualizações.", 233, CONTROLS_FONT);
+        centered(g, "Dash: tecla D após compra. Planar será ativado na próxima atualização.", 233, CONTROLS_FONT);
         int row = 0;
         for (AbilityShop.Item item : AbilityShop.Item.values()) {
             int y = 280 + row * 50;

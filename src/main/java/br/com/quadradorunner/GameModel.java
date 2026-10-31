@@ -14,11 +14,18 @@ final class GameModel {
     private static final double GRAVITY = 1700;
     private static final double JUMP_SPEED = -710;
     static final double POWER_DURATION = 10;
+    static final double DASH_SPEED = 780;
+    static final double DASH_DURATION = 0.2;
+    static final double DASH_COOLDOWN = 1.2;
+    private static final double MAX_DASH_DISPLACEMENT = 2;
+    private static final double TIME_EPSILON = 1e-9;
     enum State { READY, RUNNING, PAUSED, LOST, WON }
     final Level level;
     final boolean[] collected;
     private GameProgress progress;
     private int ringsCollectedThisAttempt;
+    private double dashRemaining;
+    private double dashCooldownRemaining;
     record LevelSummary(String levelId, int newRings, int totalBalance) { }
     double powerRemaining;
     int jumpsUsed;
@@ -39,6 +46,18 @@ final class GameModel {
     }
 
     GameProgress progress() { return progress; }
+
+    boolean isDashing() { return dashRemaining > 0; }
+    double dashTimeRemaining() { return dashRemaining; }
+    double dashCooldownRemaining() { return dashCooldownRemaining; }
+
+    boolean dash() {
+        if (state != State.RUNNING || !progress.unlockedAbilities().contains(GameProgress.Ability.DASH)
+                || isDashing() || dashCooldownRemaining > 0) return false;
+        dashRemaining = DASH_DURATION;
+        dashCooldownRemaining = DASH_COOLDOWN;
+        return true;
+    }
 
     AbilityShop.Status buy(AbilityShop.Item item) {
         Objects.requireNonNull(item, "item");
@@ -80,6 +99,8 @@ final class GameModel {
         jumpsUsed = 0;
         powerRemaining = 0;
         ringsCollectedThisAttempt = 0;
+        dashRemaining = 0;
+        dashCooldownRemaining = 0;
         java.util.Arrays.fill(collected, false);
         state = State.READY;
     }
@@ -94,8 +115,27 @@ final class GameModel {
             throw new IllegalArgumentException("Use a positive fixed physics step");
         }
         if (state != State.RUNNING) return;
+        double remaining = dt;
+        while (remaining > 0 && state == State.RUNNING) {
+            double speed = isDashing() ? DASH_SPEED : SPEED;
+            double step = isDashing()
+                ? Math.min(remaining, Math.min(dashRemaining, MAX_DASH_DISPLACEMENT / speed)) : remaining;
+            updateMovement(step, speed);
+            dashRemaining = countDown(dashRemaining, step);
+            dashCooldownRemaining = countDown(dashCooldownRemaining, step);
+            remaining -= step;
+        }
+        if (state == State.LOST || state == State.WON) dashRemaining = 0;
+    }
+
+    private double countDown(double value, double elapsed) {
+        double remaining = value - elapsed;
+        return remaining <= TIME_EPSILON ? 0 : remaining;
+    }
+
+    private void updateMovement(double dt, double speed) {
         powerRemaining = Math.max(0, powerRemaining - dt);
-        x += SPEED * dt;
+        x += speed * dt;
         velocityY += GRAVITY * dt;
         y += velocityY * dt;
         if (y >= GROUND - SIZE) {
