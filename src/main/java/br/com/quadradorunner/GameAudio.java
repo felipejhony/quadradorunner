@@ -9,7 +9,7 @@ import java.util.logging.Logger;
 
 /** Serializes device access off the EDT. A failed device leaves the game playable. */
 final class GameAudio implements AutoCloseable {
-    enum Effect { JUMP, COLLECT, LOSE, WIN }
+    enum Effect { JUMP, COLLECT, LOSE, WIN, DASH, GLIDE, PURCHASE, DENIED }
 
     interface Output extends AutoCloseable {
         void play(Effect effect);

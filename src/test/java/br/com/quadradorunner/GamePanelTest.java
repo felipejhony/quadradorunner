@@ -57,7 +57,7 @@ class GamePanelTest {
                 finally { graphics.dispose(); }
                 assertNotEquals(image.getRGB(0, 0), image.getRGB(0, Level.GROUND + 10));
                 if (state == GameModel.State.WON) {
-                    assertEquals(new java.awt.Color(83, 227, 192).getRGB(), image.getRGB(800, 46));
+                    assertEquals(new java.awt.Color(83, 227, 192).getRGB(), image.getRGB(800, 54));
                 }
                 try {
                     Path directory = Path.of("target", "render-review");

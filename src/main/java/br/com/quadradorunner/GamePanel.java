@@ -42,20 +42,21 @@ public final class GamePanel extends JPanel {
     private static final Color PLAYER_FACE = new Color(15, 47, 51);
     private static final Color PROGRESS_TRACK = new Color(57, 79, 98);
     private static final Color OVERLAY_SHADE = new Color(6, 13, 25, 195);
-    private static final Font CRYSTAL_FONT = new Font(Font.SANS_SERIF, Font.BOLD, 13);
-    private static final Font TITLE_FONT = new Font(Font.SANS_SERIF, Font.BOLD, 18);
-    private static final Font CONTROLS_FONT = new Font(Font.SANS_SERIF, Font.PLAIN, 13);
-    private static final Font POWER_FONT = new Font(Font.SANS_SERIF, Font.BOLD, 14);
-    private static final Font OVERLAY_LABEL = new Font(Font.SANS_SERIF, Font.BOLD, 13);
-    private static final Font OVERLAY_TITLE = new Font(Font.SANS_SERIF, Font.BOLD, 42);
-    private static final Font OVERLAY_SUBTITLE = new Font(Font.SANS_SERIF, Font.PLAIN, 17);
-    private static final Font OVERLAY_HINT = new Font(Font.SANS_SERIF, Font.BOLD, 18);
+    private static final Font CRYSTAL_FONT = GameUi.bold(13);
+    private static final Font TITLE_FONT = GameUi.bold(18);
+    private static final Font CONTROLS_FONT = GameUi.regular(13);
+    private static final Font POWER_FONT = GameUi.bold(14);
+    private static final Font OVERLAY_LABEL = GameUi.bold(13);
+    private static final Font OVERLAY_TITLE = GameUi.bold(38);
+    private static final Font OVERLAY_SUBTITLE = GameUi.regular(16);
+    private static final Font OVERLAY_HINT = GameUi.bold(17);
+    private static final Font METRIC_FONT = GameUi.bold(22);
     private GameModel model;
     private final GameSession session;
     private final Supplier<GameAudio> audioFactory;
     private final Consumer<GameProgress> progressChanged;
-    private final JButton resetButton = new JButton("Resetar todo o progresso");
-    private final JButton levelsButton = new JButton("Fases (F)");
+    private final JButton resetButton = new GameButton("Zerar progresso", true);
+    private final JButton levelsButton = new GameButton("F  /  Escolher fase", false);
     private final JPanel levelChoices = new JPanel(new GridLayout(0, 1, 0, 10));
     private boolean choosingLevel;
     private boolean resetting;
@@ -63,6 +64,8 @@ public final class GamePanel extends JPanel {
     private boolean muted;
     private boolean windowFocused = true;
     private String shopMessage = "";
+    private String collectionMessage = "";
+    private double collectionMessageRemaining;
     private final FixedStepLoop loop = new FixedStepLoop();
     private final GameInput input = new GameInput();
     private final Timer timer;
@@ -98,26 +101,33 @@ public final class GamePanel extends JPanel {
         setPreferredSize(new Dimension(WIDTH, HEIGHT));
         setBackground(new Color(13, 22, 39));
         setLayout(null);
-        resetButton.setBounds(670, 478, 260, 26);
+        resetButton.setBounds(714, 448, 226, 38);
         resetButton.setFocusable(false);
+        resetButton.setToolTipText("Apaga saldo, argolas, habilidades e conclusões após confirmar. R reinicia só a tentativa.");
+        resetButton.getAccessibleContext().setAccessibleDescription("Reset completo e permanente; exige confirmação.");
         resetButton.addActionListener(event -> resetRequested.accept(this));
         add(resetButton);
-        levelsButton.setBounds(30, 478, 180, 26);
+        levelsButton.setBounds(20, 448, 200, 38);
         levelsButton.setFocusable(false);
         levelsButton.addActionListener(event -> toggleLevelMenu());
         add(levelsButton);
         levelChoices.setOpaque(false);
-        levelChoices.setBounds(160, 210, 640, 200);
+        levelChoices.setBounds(160, 210, 640, 185);
         levelChoices.setVisible(false);
         add(levelChoices);
         bindKey("F", GameInput.Key.LEVELS, this::toggleLevelMenu);
         bindKey("SPACE", GameInput.Key.SPACE, this::jump);
         bindKey("UP", GameInput.Key.UP, this::jump);
-        bindKey("D", GameInput.Key.DASH, () -> model.dash());
-        bindKey("G", GameInput.Key.GLIDE, () -> model.setGlideHeld(true), () -> model.setGlideHeld(false));
-        bindKey("R", GameInput.Key.RESTART, session::replay);
+        bindKey("D", GameInput.Key.DASH, () -> {
+            if (model.dash()) play(GameAudio.Effect.DASH);
+        });
+        bindKey("G", GameInput.Key.GLIDE, () -> {
+            model.setGlideHeld(true);
+            if (model.isGliding()) play(GameAudio.Effect.GLIDE);
+        }, () -> model.setGlideHeld(false));
+        bindKey("R", GameInput.Key.RESTART, () -> { session.replay(); clearCollectionMessage(); });
         bindKey("ENTER", GameInput.Key.ADVANCE, () -> {
-            if (session.advance()) model = session.current();
+            if (session.advance()) { model = session.current(); clearCollectionMessage(); }
         });
         bindKey("P", GameInput.Key.PAUSE, () -> model.togglePause());
         bindKey("ESCAPE", GameInput.Key.ESCAPE, () -> {
@@ -138,11 +148,7 @@ public final class GamePanel extends JPanel {
     }
 
     boolean confirmReset() {
-        return JOptionPane.showOptionDialog(this,
-            "Resetar todo o jogo?\nSaldo, argolas, habilidades e fases concluídas serão zerados.\n"
-                + "Os cristais serão restaurados e somente a primeira fase ficará liberada.",
-            "Confirmar reset completo", JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE,
-            null, new String[]{"Cancelar", "Resetar jogo"}, "Cancelar") == 1;
+        return ResetConfirmation.show(this);
     }
 
     private void toggleLevelMenu() {
@@ -157,13 +163,16 @@ public final class GamePanel extends JPanel {
                 Level level = session.levelAt(i);
                 boolean completed = model.progress().completedLevelIds().contains(level.id);
                 boolean unlocked = session.isLevelUnlocked(i);
-                JButton choice = new JButton((i + 1) + " — " + level.title + " — "
-                    + (completed ? "Concluída · rejogar" : unlocked ? "Liberada · jogar" : "Bloqueada"));
+                JButton choice = new GameButton((i + 1) + " — " + level.title + " — "
+                    + (completed ? "Concluída · rejogar" : unlocked ? "Liberada · jogar" : "Bloqueada"), false);
+                choice.setToolTipText(unlocked ? "Iniciar uma nova tentativa preservando seu progresso."
+                    : "Conclua as fases anteriores e compre a habilidade exigida na loja (B após vencer).");
                 choice.setFocusable(false);
                 choice.setEnabled(unlocked);
                 choice.addActionListener(event -> {
                     if (!resetting && session.selectLevel(target)) {
                         model = session.current();
+                        clearCollectionMessage();
                         shopMessage = "";
                         closeLevelMenu();
                         synchronizeTimer();
@@ -209,6 +218,7 @@ public final class GamePanel extends JPanel {
             session.reset();
             model = session.current();
             shopMessage = "";
+            clearCollectionMessage();
         }
         resetting = false;
         input.clear();
@@ -221,7 +231,7 @@ public final class GamePanel extends JPanel {
         levelsButton.setEnabled(!resetting);
         resetButton.setVisible(resetting || model.state != GameModel.State.RUNNING);
         resetButton.setEnabled(!resetting);
-        resetButton.setText(resetting ? "Resetando progresso..." : "Resetar todo o progresso");
+        resetButton.setText(resetting ? "Salvando reset..." : "Zerar progresso");
     }
 
     private void jump() {
@@ -236,7 +246,10 @@ public final class GamePanel extends JPanel {
             case INSUFFICIENT_FUNDS -> "Saldo insuficiente para comprar " + item.label + ".";
             case UNAVAILABLE -> "";
         };
-        if (status == AbilityShop.Status.PURCHASED) progressChanged.accept(model.progress());
+        if (status == AbilityShop.Status.PURCHASED) {
+            progressChanged.accept(model.progress());
+            play(GameAudio.Effect.PURCHASE);
+        } else if (status != AbilityShop.Status.UNAVAILABLE) play(GameAudio.Effect.DENIED);
     }
 
     private void play(GameAudio.Effect effect) {
@@ -332,19 +345,32 @@ public final class GamePanel extends JPanel {
     void updateGame(double dt) {
         if (resetting) return;
         GameModel.State previous = model.state;
+        boolean glidingBefore = model.isGliding();
         int collectedBefore = collectedCount();
         GameProgress previousProgress = model.progress();
         model.update(dt);
+        if (previous == GameModel.State.RUNNING) {
+            collectionMessageRemaining = Math.max(0, collectionMessageRemaining - dt);
+        }
+        if (!glidingBefore && model.isGliding()) play(GameAudio.Effect.GLIDE);
         refreshResetButton();
         if (collectedCount() > collectedBefore
                 || model.progress().collectedRings().size() > previousProgress.collectedRings().size()) {
             play(GameAudio.Effect.COLLECT);
+            int newRings = model.progress().collectedRings().size() - previousProgress.collectedRings().size();
+            collectionMessage = newRings > 0 ? "+" + newRings + " ARGOLA" : "SALTO DUPLO / 10s";
+            collectionMessageRemaining = 1;
         }
         if (model.progress() != previousProgress) progressChanged.accept(model.progress());
         if (previous == GameModel.State.RUNNING) {
             if (model.state == GameModel.State.LOST) play(GameAudio.Effect.LOSE);
             if (model.state == GameModel.State.WON) play(GameAudio.Effect.WIN);
         }
+    }
+
+    private void clearCollectionMessage() {
+        collectionMessage = "";
+        collectionMessageRemaining = 0;
     }
 
     private int collectedCount() {
@@ -359,21 +385,28 @@ public final class GamePanel extends JPanel {
         Graphics2D g = (Graphics2D) graphics.create();
         try {
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
             drawBackground(g);
             drawWorld(g);
             drawHud(g);
+            if (collectionMessageRemaining > 0 && model.state == GameModel.State.RUNNING) {
+                g.setFont(POWER_FONT);
+                g.setColor(RING_GOLD);
+                g.drawString(collectionMessage, (int) (model.x - camera),
+                    Math.max(155, (int) model.y - 16));
+            }
             if (choosingLevel) {
                 g.setColor(OVERLAY_SHADE);
-                g.fillRoundRect(100, 110, 760, 350, 24, 24);
+                g.fillRoundRect(100, 138, 760, 294, 20, 20);
                 g.setColor(INK);
-                centered(g, "ESCOLHER FASE", 160, OVERLAY_TITLE);
+                centered(g, "ESCOLHER FASE", 174, OVERLAY_TITLE);
                 centered(g, "Saldo, compras e argolas coletadas serão preservados.", 193, CONTROLS_FONT);
-                centered(g, "F ou ESC para voltar · escolher reinicia a tentativa", 440, CONTROLS_FONT);
+                centered(g, "F ou ESC para voltar · escolher reinicia a tentativa", 419, CONTROLS_FONT);
                 return;
             }
             switch (model.state) {
                 case READY -> {
-                    overlay(g, "QUADRADO RUNNER", readyMessage(), "ESPAÇO ou ↑ para começar e pular");
+                    overlay(g, "QUADRADO RUNNER", readyMessage(), "ESPAÇO ou CIMA para começar e pular");
                     if (!model.level.gates.isEmpty()) {
                         g.setColor(INK);
                         centered(g, routeInstruction(), 390, CONTROLS_FONT);
@@ -514,45 +547,81 @@ public final class GamePanel extends JPanel {
     }
 
     private void drawHud(Graphics2D g) {
+        hudCard(g, 20, 12, 350, 66);
+        hudCard(g, 382, 12, 166, 66);
+        hudCard(g, 560, 12, 170, 66);
+        hudCard(g, 742, 12, 198, 66);
         g.setColor(INK);
         g.setFont(TITLE_FONT);
-        g.drawString("QUADRADO / RUNNER", 28, 36);
+        g.drawString("QUADRADO / RUNNER", 36, 39);
         g.setFont(CONTROLS_FONT);
-        g.drawString("ESPAÇO / ↑  pular     D  dash     G  planar     P / ESC  pausar     R  reiniciar", 28, 511);
-        g.drawString(muted ? "M  som: desligado" : "M  som: ligado", 785, 511);
+        g.setColor(GameUi.MUTED);
+        g.drawString(levelLabel(), 36, 61);
         g.setColor(RING_GOLD);
-        g.drawString("ARGOLAS COLETADAS  " + model.collectedRingCount() + "/" + model.level.rings.size(), 420, 32);
-        g.drawString("SALDO  " + model.progress().balance(), 420, 55);
-        g.setColor(INK);
+        g.drawString("SALDO", 398, 32);
+        g.setFont(METRIC_FONT);
+        g.drawString(Integer.toString(model.progress().balance()), 398, 61);
+        g.setFont(CONTROLS_FONT);
+        g.drawString("ARGOLAS DA FASE", 576, 32);
+        g.setFont(METRIC_FONT);
+        g.drawString(model.collectedRingCount() + " / " + model.level.rings.size(), 576, 61);
+        g.setFont(CONTROLS_FONT);
+        g.setColor(GameUi.MUTED);
         double progress = Math.max(0, Math.min(1, (model.x - GameModel.START_X) / (model.level.finish - GameModel.START_X)));
-        g.drawString("CHEGADA  " + (int) (progress * 100) + "%", 720, 32);
+        g.drawString("CHEGADA  " + (int) (progress * 100) + "%", 758, 36);
         g.setColor(PROGRESS_TRACK);
-        g.fillRoundRect(720, 43, 210, 7, 7, 7);
+        g.fillRoundRect(758, 51, 166, 7, 7, 7);
         g.setColor(ACCENT);
-        g.fillRoundRect(720, 43, (int) (210 * progress), 7, 7, 7);
+        g.fillRoundRect(758, 51, (int) (166 * progress), 7, 7, 7);
+        hudCard(g, 20, 86, 300, 38);
+        hudCard(g, 330, 86, 300, 38);
+        hudCard(g, 640, 86, 300, 38);
         g.setColor(CRYSTAL);
-        g.setFont(POWER_FONT);
+        g.setFont(CONTROLS_FONT);
         g.drawString(model.powerRemaining > 0
-            ? "SALTO DUPLO  " + (int) Math.ceil(model.powerRemaining) + "s  •  " + (2 - model.jumpsUsed) + " salto(s) disponível(is)"
-            : "◆ Cristal azul = salto duplo por 10s", 28, 65);
+            ? "2X  /  " + (int) Math.ceil(model.powerRemaining) + "s  /  " + (2 - model.jumpsUsed) + " salto(s) restante(s)"
+            : "2X  /  Cristal azul: salto duplo por 10s", 34, 110);
         g.setColor(DASH_COLOR);
         String dashStatus;
         if (!model.progress().unlockedAbilities().contains(GameProgress.Ability.DASH)) {
-            dashStatus = "DASH bloqueado • disponível na loja por " + AbilityShop.Item.DASH.price + " argolas";
+            dashStatus = "D  /  DASH bloqueado · loja: " + AbilityShop.Item.DASH.price + " argolas";
         } else if (model.isDashing()) {
-            dashStatus = "DASH ativo";
+            dashStatus = "D  /  DASH ativo";
         } else if (model.dashCooldownRemaining() > 0) {
-            dashStatus = "DASH recarregando: "
+            dashStatus = "D  /  DASH recarga: "
                 + Math.ceil(model.dashCooldownRemaining() * 10 - TIMER_DISPLAY_EPSILON) / 10 + "s";
         } else {
-            dashStatus = "D  DASH pronto";
+            dashStatus = "D  /  DASH pronto";
         }
-        g.drawString(dashStatus, 28, 90);
+        g.drawString(dashStatus, 344, 110);
         g.setColor(GLIDE_COLOR);
         String glideStatus = !model.progress().unlockedAbilities().contains(GameProgress.Ability.GLIDE)
-            ? "PLANAR bloqueado • loja: " + AbilityShop.Item.GLIDE.price + " argolas"
-            : model.isGliding() ? "G  PLANAR ativo" : "Segure G durante a queda para planar";
-        g.drawString(glideStatus, 520, 90);
+            ? "G  /  PLANAR bloqueado · loja: " + AbilityShop.Item.GLIDE.price + " argolas"
+            : model.isGliding() ? "G  /  PLANAR ativo" : "G  /  Segure na queda para planar";
+        g.drawString(glideStatus, 654, 110);
+
+        g.setColor(GameUi.SURFACE);
+        g.fillRect(0, 438, WIDTH, HEIGHT - 438);
+        g.setColor(GameUi.EDGE);
+        g.drawLine(20, 438, 940, 438);
+        g.setFont(CONTROLS_FONT);
+        g.setColor(GameUi.MUTED);
+        if (model.state == GameModel.State.RUNNING) {
+            g.drawString("F  /  Escolher fase (pausa a corrida)", 28, 474);
+        } else {
+            centered(g, "R repete a tentativa · progresso preservado", 473, CONTROLS_FONT);
+        }
+        g.setColor(INK);
+        g.drawString("ESPAÇO / CIMA  pular     D  dash     G  planar     P / ESC  pausar     R  reiniciar", 28, 518);
+        g.setColor(muted ? OBSTACLE_FILL : ACCENT);
+        g.drawString(muted ? "M  /  SOM OFF" : "M  /  SOM ON", 810, 518);
+    }
+
+    private void hudCard(Graphics2D g, int x, int y, int width, int height) {
+        g.setColor(GameUi.SURFACE);
+        g.fillRoundRect(x, y, width, height, 12, 12);
+        g.setColor(GameUi.EDGE);
+        g.drawRoundRect(x, y, width, height, 12, 12);
     }
 
     private String readyMessage() {
@@ -586,7 +655,7 @@ public final class GamePanel extends JPanel {
 
     private void overlay(Graphics2D g, String title, String subtitle, String hint) {
         g.setColor(OVERLAY_SHADE);
-        g.fillRect(0, 65, WIDTH, 410);
+        g.fillRoundRect(60, 138, 840, 294, 20, 20);
         g.setColor(ACCENT);
         centered(g, levelLabel(), 182, OVERLAY_LABEL);
         g.setColor(INK);
@@ -603,9 +672,9 @@ public final class GamePanel extends JPanel {
     private void drawLevelSummary(Graphics2D g) {
         GameModel.LevelSummary summary = model.levelSummary();
         g.setColor(OVERLAY_SHADE);
-        g.fillRect(0, 65, WIDTH, 410);
+        g.fillRoundRect(60, 138, 840, 294, 20, 20);
         g.setColor(ACCENT);
-        centered(g, levelLabel(), 148, OVERLAY_LABEL);
+        centered(g, levelLabel(), 165, OVERLAY_LABEL);
         g.setColor(INK);
         centered(g, "FASE CONCLUÍDA!", 210, OVERLAY_TITLE);
         centered(g, "Argolas novas nesta tentativa: " + summary.newRings(), 267, OVERLAY_SUBTITLE);
@@ -633,18 +702,18 @@ public final class GamePanel extends JPanel {
 
     private void drawShop(Graphics2D g) {
         g.setColor(OVERLAY_SHADE);
-        g.fillRect(0, 65, WIDTH, 410);
+        g.fillRoundRect(60, 138, 840, 294, 20, 20);
         g.setColor(ACCENT);
-        centered(g, levelLabel(), 112, OVERLAY_LABEL);
+        centered(g, "MELHORIAS PERMANENTES", 162, OVERLAY_LABEL);
         g.setColor(INK);
-        centered(g, "LOJA DE HABILIDADES", 164, OVERLAY_TITLE);
+        centered(g, "LOJA DE HABILIDADES", 202, OVERLAY_TITLE);
         g.setColor(RING_GOLD);
-        centered(g, "Saldo: " + model.progress().balance() + " argola(s)", 203, OVERLAY_HINT);
+        centered(g, "Saldo: " + model.progress().balance() + " argola(s)", 232, OVERLAY_HINT);
         g.setColor(INK);
-        centered(g, "Após comprar: D para dash; segure G durante a queda para planar.", 233, CONTROLS_FONT);
+        centered(g, "Após comprar: D para dash; segure G durante a queda para planar.", 254, CONTROLS_FONT);
         int row = 0;
         for (AbilityShop.Item item : AbilityShop.Item.values()) {
-            int y = 280 + row * 50;
+            int y = 292 + row * 44;
             g.setFont(OVERLAY_HINT);
             g.setColor(INK);
             g.drawString((row + 1) + "  " + item.label, 180, y);
@@ -665,6 +734,8 @@ public final class GamePanel extends JPanel {
 
     private void centered(Graphics2D g, String text, int baseline, Font font) {
         g.setFont(font);
+        int width = g.getFontMetrics().stringWidth(text);
+        if (width > WIDTH - 150) g.setFont(font.deriveFont(font.getSize2D() * (WIDTH - 150) / width));
         g.drawString(text, (WIDTH - g.getFontMetrics().stringWidth(text)) / 2, baseline);
     }
 }

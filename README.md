@@ -26,6 +26,7 @@ O compilador Maven usa `release 17`, inclusive quando o build roda com um JDK ma
 ```powershell
 New-Item -ItemType Directory -Force target/classes
 javac --release 17 -encoding UTF-8 -d target/classes src/main/java/br/com/quadradorunner/*.java
+Copy-Item -Recurse -Force src/main/resources/* target/classes/
 java -cp target/classes br.com.quadradorunner.Main
 ```
 
@@ -58,7 +59,7 @@ O HUD mostra o saldo e a contagem de argolas já coletadas na fase (por exemplo,
 
 ## Loja entre fases
 
-O botão **Resetar todo o progresso**, disponível nos menus e na pausa, pede confirmação antes de zerar saldo, argolas coletadas, habilidades compradas e fases concluídas. Os cristais e a tentativa são restaurados, e apenas a primeira fase fica liberada. O reset aguarda a gravação do save; se ela falhar, o progresso anterior continua na sessão. **R** continua reiniciando somente a tentativa, preservando o save.
+O botão vermelho **Zerar progresso**, disponível nos menus e na pausa, abre uma confirmação que explica o que será apagado. **Manter progresso**, Enter, Esc ou fechar esse diálogo cancela; **Sim, zerar tudo** confirma. O reset zera saldo, argolas coletadas, habilidades compradas e fases concluídas. Os cristais e a tentativa são restaurados, e apenas a primeira fase fica liberada. O jogo aguarda a gravação do save; se ela falhar, o progresso anterior continua na sessão. **R** continua reiniciando somente a tentativa, preservando o save.
 
 Após concluir uma fase, pressione **B** no resumo para abrir a loja. O catálogo oferece **Dash por 4 argolas** (tecla **1**) e **Planar por 6 argolas** (tecla **2**). A tela mostra preço, saldo e se o item está disponível, já adquirido ou exige mais argolas. **B** ou **Esc** retorna ao resumo; **R** também permite rejogar a fase atual, mantendo as compras.
 
@@ -102,8 +103,13 @@ A fase 2 tem seis argolas acessíveis usando apenas Dash, suficientes para compr
 
 ## Organização
 
+O HUD separa saldo permanente, argolas coletadas na fase e progresso até a chegada. A segunda linha mostra salto duplo temporário, estado/recarga do Dash e estado do Planar. Coletar mostra um aviso curto junto ao jogador; menus e loja mantêm instruções visíveis, sem cobrir os indicadores superiores. A barra inferior separa botões de menu dos controles de movimento.
+
+Títulos, HUD e botões usam **Oxanium**, dos [autores do projeto Oxanium](https://github.com/sevmeyer/oxanium), distribuída sob a [SIL Open Font License 1.1](src/main/resources/fonts/OFL-Oxanium.txt). Os arquivos originais, crédito e licença acompanham o JAR em `fonts/`; não é necessário instalar a fonte nem conectar à internet para jogar. Se o recurso estiver ausente ou inválido, a interface usa SansSerif e registra o motivo.
+
 - `Main.java`: cria a janela na EDT e encaminha perda de foco.
 - `GamePanel.java`: adapta entrada e timer do Swing; desenha mundo, câmera e HUD.
+- `GameUi.java`, `GameButton.java`, `ResetConfirmation.java`: fontes locais, botões e confirmação de reset, sem alterar padrões globais do Swing.
 - `GameModel.java`: estado, movimentação, saltos, colisões e power-ups, sem dependência de Swing.
 - `GameSession.java`: sequência de fases, replay e avanço com preservação do progresso.
 - `AbilityShop.java`: catálogo, preços e transação imutável de compra.
@@ -136,7 +142,7 @@ JUnit 5 e Surefire são dependências apenas do build/teste. A suíte cobre salt
 
 ## Áudio
 
-O jogo inclui efeitos suaves de salto, coleta de cristal, derrota e vitória. Saltos recusados e repetição de teclas não disparam efeitos. A música de fundo é uma composição procedural original de 16 segundos, com quatro acordes lentos e arpejos, reproduzida em loop e em volume baixo. Não há arquivos externos, downloads nem bibliotecas de áudio adicionais: a síntese e a reprodução usam Java Sound, incluído no JDK.
+O jogo inclui efeitos suaves de salto, coleta de argola/cristal, dash, início de planar, compra, compra recusada, derrota e vitória. Comandos recusados de movimento e repetição de teclas não disparam efeitos; a loja informa compras duplicadas ou sem saldo com texto e um som curto. A música de fundo é uma composição procedural original de 16 segundos, com quatro acordes lentos e arpejos, reproduzida em loop e em volume baixo. O áudio não depende de arquivos externos, downloads nem bibliotecas adicionais: a síntese e a reprodução usam Java Sound, incluído no JDK.
 
 A música começa ao abrir o painel e continua nas telas inicial, de derrota e de vitória. Pausar ou tirar o foco interrompe a música e os efeitos; ao continuar, a música retoma da posição anterior. A tecla **M** silencia música e efeitos juntos, com indicação no rodapé. Essa preferência é mantida ao reiniciar a fase, apenas durante a execução atual.
 

@@ -27,6 +27,10 @@ final class AudioSamples {
             case COLLECT -> 0.36;
             case LOSE -> 0.5;
             case WIN -> 0.9;
+            case DASH -> 0.18;
+            case GLIDE -> 0.3;
+            case PURCHASE -> 0.45;
+            case DENIED -> 0.14;
         };
         double[] samples = new double[(int) (duration * SAMPLE_RATE)];
         switch (effect) {
@@ -42,6 +46,13 @@ final class AudioSamples {
                     addTone(samples, i * 0.16, 0.4, notes[i], notes[i], 0.13);
                 }
             }
+            case DASH -> addTone(samples, 0, duration, 48, 76, 0.12);
+            case GLIDE -> addTone(samples, 0, duration, 81, 74, 0.09);
+            case PURCHASE -> {
+                addTone(samples, 0, 0.22, 76, 76, 0.12);
+                addTone(samples, 0.18, 0.27, 88, 88, 0.12);
+            }
+            case DENIED -> addTone(samples, 0, duration, 48, 45, 0.09);
         }
         return pcm(samples);
     }

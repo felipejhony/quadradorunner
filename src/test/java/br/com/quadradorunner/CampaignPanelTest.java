@@ -67,7 +67,7 @@ class CampaignPanelTest {
             session.current().x = session.current().level.finish;
             GamePanel panel = new GamePanel(session, GameAudio::new, ignored -> { });
             BufferedImage image = render(panel, "campaign-short-finish");
-            assertEquals(new Color(83, 227, 192).getRGB(), image.getRGB(800, 46));
+            assertEquals(new Color(83, 227, 192).getRGB(), image.getRGB(800, 54));
             assertEquals(new Color(225, 237, 247).getRGB(), image.getRGB(731, 350));
             panel.updateGame(FixedStepLoop.STEP);
             assertEquals(GameModel.State.WON, session.current().state);
