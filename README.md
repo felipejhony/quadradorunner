@@ -42,11 +42,23 @@ Solte todas as teclas de pulo antes de pressionar novamente para cada salto. Com
 
 A câmera acompanha o jogador e o indicador superior mostra o progresso. A fase tem o dobro do comprimento original e pode ser concluída mesmo sem coletar os power-ups.
 
+## Argolas e progresso salvo
+
+A pista possui 12 argolas douradas. Encoste no disco de uma argola para coletá-la e ganhar 1 no saldo permanente. Cada argola é identificada pela fase e por um ID fixo: depois de coletada, não reaparece ao morrer, reiniciar ou reabrir o jogo. Os cristais azuis continuam sendo power-ups temporários independentes das argolas.
+
+O aplicativo carrega e salva automaticamente um slot em `${user.home}/.quadrado-runner/progress.properties`. As gravações acontecem fora da thread da interface, usando o formato versionado e a substituição atômica existentes. Fechar normalmente aguarda a gravação final; evite encerrar o processo à força enquanto salva. Se houver falha ao salvar, o jogo mantém o progresso em memória e permite repetir a tentativa ao fechar novamente. Saves inválidos ou de versão incompatível são preservados e informados ao carregar, sem começar silenciosamente do zero.
+
+A loja, as compras e a exibição do saldo no HUD serão implementadas nas etapas seguintes do plano.
+
 ## Organização
 
 - `Main.java`: cria a janela na EDT e encaminha perda de foco.
 - `GamePanel.java`: adapta entrada e timer do Swing; desenha mundo, câmera e HUD.
 - `GameModel.java`: estado, movimentação, saltos, colisões e power-ups, sem dependência de Swing.
+- `Ring.java`: identidade local, posição e colisão das argolas.
+- `GameProgress.java`: snapshot imutável de saldo, argolas, habilidades e fases concluídas.
+- `GameProgressStore.java`: persistência local versionada com gravação atômica.
+- `ProgressAutosave.java`: fila de gravação fora da EDT.
 - `Level.java`: geometria e configuração da fase.
 - `GameInput.java`: transições das teclas e bloqueio de repetição.
 - `FixedStepLoop.java`: acumulador de tempo com passo fixo de 1/120 s.

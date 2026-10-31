@@ -5,6 +5,7 @@ import java.awt.event.ActionEvent;
 import java.awt.geom.*;
 import javax.swing.*;
 import java.util.function.Supplier;
+import java.util.function.Consumer;
 import static br.com.quadradorunner.Level.*;
 import static br.com.quadradorunner.GameModel.SIZE;
 
@@ -26,6 +27,9 @@ public final class GamePanel extends JPanel {
     private static final Color OBSTACLE_EDGE = new Color(255, 177, 144);
     private static final Color CRYSTAL_GLOW = new Color(89, 185, 255, 55);
     private static final Color CRYSTAL = new Color(104, 202, 255);
+    private static final Color RING_GOLD = new Color(255, 206, 76);
+    private static final Color RING_HIGHLIGHT = new Color(255, 246, 190);
+    private static final Stroke RING_STROKE = new BasicStroke(4);
     private static final Color FLAG_DARK = new Color(30, 45, 62);
     private static final Color PLAYER_GLOW = new Color(104, 202, 255, 100);
     private static final Color SHADOW = new Color(0, 0, 0, 55);
@@ -42,6 +46,7 @@ public final class GamePanel extends JPanel {
     private static final Font OVERLAY_HINT = new Font(Font.SANS_SERIF, Font.BOLD, 18);
     private final GameModel model;
     private final Supplier<GameAudio> audioFactory;
+    private final Consumer<GameProgress> progressChanged;
     private GameAudio audio;
     private boolean muted;
     private boolean windowFocused = true;
@@ -60,8 +65,13 @@ public final class GamePanel extends JPanel {
     }
 
     GamePanel(GameModel model, Supplier<GameAudio> audioFactory) {
+        this(model, audioFactory, progress -> { });
+    }
+
+    GamePanel(GameModel model, Supplier<GameAudio> audioFactory, Consumer<GameProgress> progressChanged) {
         this.model = model;
         this.audioFactory = audioFactory;
+        this.progressChanged = progressChanged;
         setPreferredSize(new Dimension(WIDTH, HEIGHT));
         setBackground(new Color(13, 22, 39));
         bindKey("SPACE", GameInput.Key.SPACE, this::jump);
@@ -160,8 +170,12 @@ public final class GamePanel extends JPanel {
     void updateGame(double dt) {
         GameModel.State previous = model.state;
         int collectedBefore = collectedCount();
+        GameProgress previousProgress = model.progress();
         model.update(dt);
-        if (collectedCount() > collectedBefore) play(GameAudio.Effect.COLLECT);
+        if (collectedCount() > collectedBefore || model.progress() != previousProgress) {
+            play(GameAudio.Effect.COLLECT);
+        }
+        if (model.progress() != previousProgress) progressChanged.accept(model.progress());
         if (previous == GameModel.State.RUNNING) {
             if (model.state == GameModel.State.LOST) play(GameAudio.Effect.LOSE);
             if (model.state == GameModel.State.WON) play(GameAudio.Effect.WIN);
@@ -244,6 +258,7 @@ public final class GamePanel extends JPanel {
             g.setFont(CRYSTAL_FONT);
             g.drawString("2", cx - 4, cy + 5);
         }
+        drawRings(g);
         int fx = FINISH;
         g.setColor(INK);
         g.fillRect(fx, GROUND - 140, 4, 140);
@@ -266,6 +281,24 @@ public final class GamePanel extends JPanel {
         g.fillRect(px + 22, (int) model.y + 9, 5, 6);
         g.fillRect(px + 23, (int) model.y + 23, 8, 3);
         g.setTransform(original);
+    }
+
+    private void drawRings(Graphics2D g) {
+        Stroke original = g.getStroke();
+        g.setStroke(RING_STROKE);
+        for (Ring ring : model.level.rings) {
+            if (model.isRingCollected(ring) || ring.x() + Ring.DIAMETER < camera
+                    || ring.x() > camera + WIDTH) continue;
+            // Stroke stays inside the collectible outer disk.
+            Ellipse2D outline = new Ellipse2D.Double(ring.x() + 2, ring.y() + 2,
+                Ring.DIAMETER - 4, Ring.DIAMETER - 4);
+            g.setColor(RING_GOLD);
+            g.draw(outline);
+            g.setColor(RING_HIGHLIGHT);
+            g.draw(new Arc2D.Double(ring.x() + 2, ring.y() + 2,
+                Ring.DIAMETER - 4, Ring.DIAMETER - 4, 60, 80, Arc2D.OPEN));
+        }
+        g.setStroke(original);
     }
 
     private void drawHud(Graphics2D g) {

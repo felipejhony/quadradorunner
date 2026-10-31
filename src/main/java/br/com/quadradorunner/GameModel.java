@@ -2,6 +2,8 @@ package br.com.quadradorunner;
 
 import java.awt.Shape;
 import java.awt.geom.Rectangle2D;
+import java.util.Objects;
+import java.util.HashSet;
 import static br.com.quadradorunner.Level.*;
 
 /** Game rules independent of Swing. Owned by the event dispatch thread in the UI. */
@@ -15,6 +17,7 @@ final class GameModel {
     enum State { READY, RUNNING, PAUSED, LOST, WON }
     final Level level;
     final boolean[] collected;
+    private GameProgress progress;
     double powerRemaining;
     int jumpsUsed;
     State state = State.READY;
@@ -24,8 +27,19 @@ final class GameModel {
     boolean grounded = true;
 
     GameModel(Level level) {
-        this.level = level;
+        this(level, new GameProgress());
+    }
+
+    GameModel(Level level, GameProgress progress) {
+        this.level = Objects.requireNonNull(level, "level");
+        this.progress = Objects.requireNonNull(progress, "progress");
         collected = new boolean[level.powerUps.size()];
+    }
+
+    GameProgress progress() { return progress; }
+
+    boolean isRingCollected(Ring ring) {
+        return progress.collectedRings().contains(new GameProgress.RingId(level.id, ring.id()));
     }
 
     void pause() {
@@ -82,6 +96,7 @@ final class GameModel {
             }
         }
         if (state == State.RUNNING) {
+            collectRings(player);
             for (int i = 0; i < level.powerUps.size(); i++) {
                 if (!collected[i] && player.intersects(level.powerUps.get(i))) {
                     collected[i] = true;
@@ -90,6 +105,18 @@ final class GameModel {
             }
         }
         if (state == State.RUNNING && x >= FINISH) state = State.WON;
+    }
+
+    private void collectRings(Rectangle2D player) {
+        for (Ring ring : level.rings) {
+            if (progress.balance() == Integer.MAX_VALUE) return;
+            if (!isRingCollected(ring) && ring.intersects(player)) {
+                var rings = new HashSet<>(progress.collectedRings());
+                rings.add(new GameProgress.RingId(level.id, ring.id()));
+                progress = new GameProgress(progress.balance() + 1, rings,
+                    progress.unlockedAbilities(), progress.completedLevelIds());
+            }
+        }
     }
 
 }
