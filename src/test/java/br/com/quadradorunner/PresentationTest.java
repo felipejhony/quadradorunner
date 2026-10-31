@@ -113,7 +113,7 @@ class PresentationTest {
                     model.state = GameModel.State.RUNNING;
                     press(panel, "D");
                     press(panel, "D");
-                    tap(panel, "G"); // Not purchased.
+                    tap(panel, "SPACE"); // Not purchased.
                     model.state = GameModel.State.WON;
                     tap(panel, "1"); // Shop closed: no denial sound.
                     tap(panel, "B");
@@ -126,18 +126,18 @@ class PresentationTest {
                     model.grounded = false;
                     model.y = Level.GROUND - 100;
                     model.velocityY = 50;
-                    press(panel, "G"); // Activation while descending.
-                    press(panel, "G");
+                    press(panel, "SPACE"); // Activation while descending.
+                    press(panel, "SPACE");
                     panel.updateGame(FixedStepLoop.STEP);
                     panel.updateGame(FixedStepLoop.STEP);
-                    release(panel, "G");
+                    release(panel, "SPACE");
                     model.velocityY = -1;
-                    press(panel, "G"); // Held through the apex.
+                    press(panel, "SPACE"); // Held through the apex.
                     panel.updateGame(FixedStepLoop.STEP);
                     panel.updateGame(FixedStepLoop.STEP);
                     tap(panel, "M");
-                    release(panel, "G");
-                    tap(panel, "G"); // Muted activation.
+                    release(panel, "SPACE");
+                    tap(panel, "SPACE"); // Muted activation.
                     release(panel, "D");
                     tap(panel, "D"); // Muted dash.
                 } finally { panel.removeNotify(); }

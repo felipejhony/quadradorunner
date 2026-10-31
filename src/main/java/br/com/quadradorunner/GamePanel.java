@@ -6,8 +6,6 @@ import java.awt.geom.*;
 import javax.swing.*;
 import java.util.function.Supplier;
 import java.util.function.Consumer;
-import java.util.Arrays;
-import java.util.stream.Collectors;
 import static br.com.quadradorunner.Level.*;
 import static br.com.quadradorunner.GameModel.SIZE;
 
@@ -17,7 +15,6 @@ public final class GamePanel extends JPanel {
     static final int HEIGHT = 540;
     private static final int CAMERA_ANCHOR = 210;
     private static final int FINISH_MARGIN = 230;
-    private static final double TIMER_DISPLAY_EPSILON = 1e-9;
     private static final Color INK = new Color(225, 237, 247);
     private static final Color SKY_TOP = new Color(14, 23, 43);
     private static final Color SKY_BOTTOM = new Color(29, 54, 76);
@@ -59,6 +56,7 @@ public final class GamePanel extends JPanel {
     private final JButton levelsButton = new GameButton("F  /  Escolher fase", false);
     private final JPanel levelChoices = new JPanel(new GridLayout(0, 1, 0, 10));
     private boolean choosingLevel;
+    private int selectedLevel;
     private boolean resetting;
     private GameAudio audio;
     private boolean muted;
@@ -116,17 +114,22 @@ public final class GamePanel extends JPanel {
         levelChoices.setVisible(false);
         add(levelChoices);
         bindKey("F", GameInput.Key.LEVELS, this::toggleLevelMenu);
-        bindKey("SPACE", GameInput.Key.SPACE, this::jump);
-        bindKey("UP", GameInput.Key.UP, this::jump);
-        bindKey("D", GameInput.Key.DASH, () -> {
-            if (model.dash()) play(GameAudio.Effect.DASH);
-        });
-        bindKey("G", GameInput.Key.GLIDE, () -> {
+        bindKey("SPACE", GameInput.Key.SPACE, () -> {
+            if (choosingLevel) { ((JButton) levelChoices.getComponent(selectedLevel)).doClick(); return; }
+            jump();
             model.setGlideHeld(true);
             if (model.isGliding()) play(GameAudio.Effect.GLIDE);
         }, () -> model.setGlideHeld(false));
+        bindKey("UP", GameInput.Key.UP, () -> { if (choosingLevel) moveLevelSelection(-1); else jump(); });
+        bindKey("DOWN", GameInput.Key.DOWN, () -> moveLevelSelection(1));
+        bindKey("LEFT", GameInput.Key.LEFT, () -> moveLevelSelection(-1));
+        bindKey("RIGHT", GameInput.Key.RIGHT, () -> moveLevelSelection(1));
+        bindKey("D", GameInput.Key.DASH, () -> {
+            if (model.dash()) play(GameAudio.Effect.DASH);
+        });
         bindKey("R", GameInput.Key.RESTART, () -> { session.replay(); clearCollectionMessage(); });
         bindKey("ENTER", GameInput.Key.ADVANCE, () -> {
+            if (choosingLevel) { ((JButton) levelChoices.getComponent(selectedLevel)).doClick(); return; }
             if (session.advance()) { model = session.current(); clearCollectionMessage(); }
         });
         bindKey("P", GameInput.Key.PAUSE, () -> model.togglePause());
@@ -141,6 +144,7 @@ public final class GamePanel extends JPanel {
         });
         bindKey("1", GameInput.Key.BUY_DASH, () -> buy(AbilityShop.Item.DASH));
         bindKey("2", GameInput.Key.BUY_GLIDE, () -> buy(AbilityShop.Item.GLIDE));
+        bindKey("3", GameInput.Key.BUY_DOUBLE_JUMP, () -> buy(AbilityShop.Item.DOUBLE_JUMP));
         bindKey("M", GameInput.Key.MUTE, () -> muted = !muted);
         timer = new Timer(16, event -> tick());
         timer.setCoalesce(true);
@@ -166,7 +170,7 @@ public final class GamePanel extends JPanel {
                 JButton choice = new GameButton((i + 1) + " — " + level.title + " — "
                     + (completed ? "Concluída · rejogar" : unlocked ? "Liberada · jogar" : "Bloqueada"), false);
                 choice.setToolTipText(unlocked ? "Iniciar uma nova tentativa preservando seu progresso."
-                    : "Conclua as fases anteriores e compre a habilidade exigida na loja (B após vencer).");
+                    : "Conclua as fases anteriores para liberar esta fase.");
                 choice.setFocusable(false);
                 choice.setEnabled(unlocked);
                 choice.addActionListener(event -> {
@@ -181,11 +185,29 @@ public final class GamePanel extends JPanel {
                 });
                 levelChoices.add(choice);
             }
+            selectedLevel = session.levelNumber() - 1;
+            highlightLevelSelection();
             levelChoices.setVisible(true);
             levelChoices.revalidate();
+            requestFocusInWindow();
         }
         synchronizeTimer();
         repaint();
+    }
+
+    private void moveLevelSelection(int direction) {
+        if (!choosingLevel) return;
+        for (int i = 0; i < session.levelCount(); i++) {
+            selectedLevel = Math.floorMod(selectedLevel + direction, session.levelCount());
+            if (session.isLevelUnlocked(selectedLevel)) break;
+        }
+        highlightLevelSelection();
+    }
+
+    private void highlightLevelSelection() {
+        for (int i = 0; i < levelChoices.getComponentCount(); i++) {
+            ((GameButton) levelChoices.getComponent(i)).setKeyboardSelected(i == selectedLevel);
+        }
     }
 
     private void closeLevelMenu() {
@@ -257,7 +279,8 @@ public final class GamePanel extends JPanel {
     }
 
     private void configureAudio() {
-        if (audio != null) audio.configure(muted, !windowFocused || model.state == GameModel.State.PAUSED);
+        if (audio != null) audio.configure(muted, !windowFocused || model.state == GameModel.State.PAUSED,
+            model.level.id.equals("level-02") ? GameAudio.Music.SUNRISE : GameAudio.Music.NIGHT);
     }
 
     private void bindKey(String stroke, GameInput.Key key, Runnable command) {
@@ -268,7 +291,9 @@ public final class GamePanel extends JPanel {
         bind("pressed " + stroke, () -> {
             if (resetting) return;
             if (choosingLevel && key != GameInput.Key.LEVELS && key != GameInput.Key.ESCAPE
-                && key != GameInput.Key.MUTE) return;
+                && key != GameInput.Key.MUTE && key != GameInput.Key.UP && key != GameInput.Key.DOWN
+                && key != GameInput.Key.LEFT && key != GameInput.Key.RIGHT && key != GameInput.Key.ADVANCE
+                && key != GameInput.Key.SPACE) return;
             if (input.press(key)) {
                 command.run();
                 synchronizeTimer();
@@ -348,7 +373,17 @@ public final class GamePanel extends JPanel {
         boolean glidingBefore = model.isGliding();
         int collectedBefore = collectedCount();
         GameProgress previousProgress = model.progress();
-        model.update(dt);
+        int previousLives = model.lives;
+        session.update(dt);
+        if (model != session.current()) {
+            model = session.current();
+            clearCollectionMessage();
+            progressChanged.accept(model.progress());
+            play(GameAudio.Effect.LOSE);
+            refreshResetButton();
+            return;
+        }
+        if (model.lives < previousLives) play(GameAudio.Effect.LOSE);
         if (previous == GameModel.State.RUNNING) {
             collectionMessageRemaining = Math.max(0, collectionMessageRemaining - dt);
         }
@@ -424,15 +459,21 @@ public final class GamePanel extends JPanel {
     }
 
     private void drawBackground(Graphics2D g) {
-        g.setPaint(new GradientPaint(0, 0, SKY_TOP, 0, GROUND, SKY_BOTTOM));
+        boolean sunrise = model.level.id.equals("level-02");
+        g.setPaint(new GradientPaint(0, 0, sunrise ? new Color(129, 65, 96) : SKY_TOP,
+            0, GROUND, sunrise ? new Color(255, 177, 92) : SKY_BOTTOM));
         g.fillRect(0, 0, WIDTH, HEIGHT);
         g.setColor(STAR);
-        for (int i = 0; i < 35; i++) {
+        for (int i = 0; i < (sunrise ? 0 : 35); i++) {
             int sx = Math.floorMod(i * 137 - (int) (camera * 0.12), WIDTH + 30);
             int sy = 35 + (i * 73 % 240);
             g.fillOval(sx, sy, 2, 2);
         }
-        g.setColor(BUILDING);
+        if (sunrise) {
+            g.setColor(new Color(255, 217, 137));
+            g.fillOval(680, 260, 150, 150);
+        }
+        g.setColor(sunrise ? new Color(123, 78, 87) : BUILDING);
         for (int i = -1; i < 9; i++) {
             int bx = i * 180 - (int) (camera * 0.25) % 180;
             int h = 70 + Math.floorMod(i * 37, 110);
@@ -452,14 +493,25 @@ public final class GamePanel extends JPanel {
         }
         AffineTransform original = g.getTransform();
         g.translate(-camera, 0);
+        for (Level.Pit pit : model.level.pits) {
+            g.setColor(new Color(12, 18, 30));
+            g.fillRect(pit.x(), GROUND, pit.width(), HEIGHT - GROUND);
+            g.setColor(Color.WHITE);
+            g.drawLine(pit.x(), GROUND, pit.x(), HEIGHT);
+            g.drawLine(pit.end(), GROUND, pit.end(), HEIGHT);
+        }
         drawAbilityGates(g);
-        for (Shape obstacle : model.level.obstacles) {
+        for (Shape baseObstacle : model.level.obstacles) {
+            Shape obstacle = model.obstacleShape(baseObstacle);
             Rectangle2D bounds = obstacle.getBounds2D();
             if (bounds.getMaxX() < camera || bounds.getMinX() > camera + WIDTH) continue;
-            g.setColor(OBSTACLE_FILL);
+            g.setColor(model.level.id.equals("level-02") ? new Color(49, 54, 160) : OBSTACLE_FILL);
             g.fill(obstacle);
-            g.setColor(OBSTACLE_EDGE);
+            g.setColor(Color.WHITE);
+            java.awt.Stroke previousStroke = g.getStroke();
+            g.setStroke(new BasicStroke(3, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
             g.draw(obstacle);
+            g.setStroke(previousStroke);
         }
         for (int i = 0; i < model.level.powerUps.size(); i++) {
             if (model.collected[i]) continue;
@@ -515,7 +567,8 @@ public final class GamePanel extends JPanel {
     private void drawRings(Graphics2D g) {
         Stroke original = g.getStroke();
         g.setStroke(RING_STROKE);
-        for (Ring ring : model.level.rings) {
+        for (Ring baseRing : model.level.rings) {
+            Ring ring = model.movingRing(baseRing);
             if (model.isRingCollected(ring) || ring.x() + Ring.DIAMETER < camera
                     || ring.x() > camera + WIDTH) continue;
             // Stroke stays inside the collectible outer disk.
@@ -542,8 +595,42 @@ public final class GamePanel extends JPanel {
             g.setFont(POWER_FONT);
             g.drawString(dash ? "BARREIRA DASH" : "CORRENTE AÉREA", gate.x() - 65, 155);
             g.setFont(CONTROLS_FONT);
-            g.drawString(dash ? "D durante a travessia" : "G durante a descida", gate.x() - 65, 175);
+            g.drawString(dash ? "D durante a travessia" : "Segure ESPAÇO na descida", gate.x() - 65, 175);
         }
+    }
+
+    private void drawAbilityIcons(Graphics2D g) {
+        int x = 20;
+        for (GameProgress.Ability ability : GameProgress.Ability.values()) {
+            if (!model.progress().unlockedAbilities().contains(ability)) continue;
+            hudCard(g, x, 86, 34, 32);
+            g.setColor(ability == GameProgress.Ability.DASH ? DASH_COLOR
+                : ability == GameProgress.Ability.GLIDE ? GLIDE_COLOR : CRYSTAL);
+            g.setStroke(new BasicStroke(2));
+            switch (ability) {
+                case DASH -> { // Lightning bolt.
+                    Path2D bolt = new Path2D.Double();
+                    bolt.moveTo(x + 20, 91); bolt.lineTo(x + 10, 103);
+                    bolt.lineTo(x + 17, 103); bolt.lineTo(x + 13, 113);
+                    bolt.lineTo(x + 25, 99); bolt.lineTo(x + 18, 99);
+                    bolt.closePath(); g.fill(bolt);
+                }
+                case GLIDE -> { // Open wings.
+                    g.drawLine(x + 6, 97, x + 17, 108);
+                    g.drawLine(x + 17, 108, x + 28, 97);
+                    g.drawLine(x + 6, 97, x + 17, 101);
+                    g.drawLine(x + 17, 101, x + 28, 97);
+                }
+                case DOUBLE_JUMP -> {
+                    for (int y : new int[]{100, 108}) {
+                        g.drawLine(x + 9, y, x + 17, y - 6);
+                        g.drawLine(x + 17, y - 6, x + 25, y);
+                    }
+                }
+            }
+            x += 42;
+        }
+        g.setStroke(new BasicStroke(1));
     }
 
     private void drawHud(Graphics2D g) {
@@ -573,32 +660,18 @@ public final class GamePanel extends JPanel {
         g.fillRoundRect(758, 51, 166, 7, 7, 7);
         g.setColor(ACCENT);
         g.fillRoundRect(758, 51, (int) (166 * progress), 7, 7, 7);
-        hudCard(g, 20, 86, 300, 38);
-        hudCard(g, 330, 86, 300, 38);
-        hudCard(g, 640, 86, 300, 38);
-        g.setColor(CRYSTAL);
-        g.setFont(CONTROLS_FONT);
-        g.drawString(model.powerRemaining > 0
-            ? "2X  /  " + (int) Math.ceil(model.powerRemaining) + "s  /  " + (2 - model.jumpsUsed) + " salto(s) restante(s)"
-            : "2X  /  Cristal azul: salto duplo por 10s", 34, 110);
-        g.setColor(DASH_COLOR);
-        String dashStatus;
-        if (!model.progress().unlockedAbilities().contains(GameProgress.Ability.DASH)) {
-            dashStatus = "D  /  DASH bloqueado · loja: " + AbilityShop.Item.DASH.price + " argolas";
-        } else if (model.isDashing()) {
-            dashStatus = "D  /  DASH ativo";
-        } else if (model.dashCooldownRemaining() > 0) {
-            dashStatus = "D  /  DASH recarga: "
-                + Math.ceil(model.dashCooldownRemaining() * 10 - TIMER_DISPLAY_EPSILON) / 10 + "s";
-        } else {
-            dashStatus = "D  /  DASH pronto";
+        drawAbilityIcons(g);
+        hudCard(g, 788, 86, 152, 36);
+        for (int i = 0; i < GameModel.MAX_LIVES; i++) {
+            int hx = 806 + i * 42;
+            Path2D heart = new Path2D.Double();
+            heart.moveTo(hx, 99);
+            heart.curveTo(hx - 10, 87, hx - 19, 102, hx, 115);
+            heart.curveTo(hx + 19, 102, hx + 10, 87, hx, 99);
+            g.setColor(i < model.lives ? new Color(235, 65, 92) : GameUi.MUTED);
+            if (i < model.lives) g.fill(heart);
+            else g.draw(heart);
         }
-        g.drawString(dashStatus, 344, 110);
-        g.setColor(GLIDE_COLOR);
-        String glideStatus = !model.progress().unlockedAbilities().contains(GameProgress.Ability.GLIDE)
-            ? "G  /  PLANAR bloqueado · loja: " + AbilityShop.Item.GLIDE.price + " argolas"
-            : model.isGliding() ? "G  /  PLANAR ativo" : "G  /  Segure na queda para planar";
-        g.drawString(glideStatus, 654, 110);
 
         g.setColor(GameUi.SURFACE);
         g.fillRect(0, 438, WIDTH, HEIGHT - 438);
@@ -612,7 +685,7 @@ public final class GamePanel extends JPanel {
             centered(g, "R repete a tentativa · progresso preservado", 473, CONTROLS_FONT);
         }
         g.setColor(INK);
-        g.drawString("ESPAÇO / CIMA  pular     D  dash     G  planar     P / ESC  pausar     R  reiniciar", 28, 518);
+        g.drawString("ESPAÇO/CIMA pular | Segure ESPAÇO planar | D dash | P/ESC pausa | R reiniciar", 28, 518);
         g.setColor(muted ? OBSTACLE_FILL : ACCENT);
         g.drawString(muted ? "M  /  SOM OFF" : "M  /  SOM ON", 810, 518);
     }
@@ -634,13 +707,13 @@ public final class GamePanel extends JPanel {
             return "Restam " + (total - collected) + " argola(s) nesta fase. As coletadas permanecem salvas.";
         }
         if (!model.level.gates.isEmpty()) return "Prepare-se para o desafio de " + model.level.title + ".";
-        return "Pegue os cristais azuis: salto duplo por 10 segundos!";
+        return "Compre o pulo duplo na loja por 5 argolas.";
     }
 
     private String routeInstruction() {
         return model.level.requiredAbilities.contains(GameProgress.Ability.DASH)
             ? "Ative D pouco antes da barreira roxa e atravesse durante o impulso."
-            : "Pule antes da corrente azul e entre nela já descendo, mantendo G pressionada.";
+            : "Pule antes da corrente azul e entre nela já descendo, mantendo ESPAÇO pressionado.";
     }
 
     private String lossMessage() {
@@ -648,7 +721,7 @@ public final class GamePanel extends JPanel {
             return "Atravesse a barreira roxa enquanto o dash estiver ativo.";
         }
         if (model.blockedGate() == GameProgress.Ability.GLIDE) {
-            return "Entre na corrente já descendo e segure G para planar.";
+            return "Entre na corrente já descendo e segure ESPAÇO para planar.";
         }
         return "Você bateu em um obstáculo. Tente pular um pouco antes.";
     }
@@ -689,14 +762,6 @@ public final class GamePanel extends JPanel {
 
     private String nextLevelMessage() {
         if (!session.hasNextLevel()) return "Todas as fases disponíveis foram concluídas.";
-        var missing = session.missingNextAbilities();
-        if (!missing.isEmpty()) {
-            String required = Arrays.stream(AbilityShop.Item.values())
-                .filter(item -> missing.contains(item.ability))
-                .map(item -> item.label + " (" + item.price + " argolas)")
-                .collect(Collectors.joining(" e "));
-            return "Próxima fase exige " + required + ". Compre na loja com B.";
-        }
         return "Seu progresso acompanha você na próxima fase.";
     }
 
@@ -704,32 +769,32 @@ public final class GamePanel extends JPanel {
         g.setColor(OVERLAY_SHADE);
         g.fillRoundRect(60, 138, 840, 294, 20, 20);
         g.setColor(ACCENT);
-        centered(g, "MELHORIAS PERMANENTES", 162, OVERLAY_LABEL);
+        centered(g, "PREÇOS SOBEM 3 ARGOLAS A CADA COMPRA", 162, OVERLAY_LABEL);
         g.setColor(INK);
         centered(g, "LOJA DE HABILIDADES", 202, OVERLAY_TITLE);
         g.setColor(RING_GOLD);
         centered(g, "Saldo: " + model.progress().balance() + " argola(s)", 232, OVERLAY_HINT);
         g.setColor(INK);
-        centered(g, "Após comprar: D para dash; segure G durante a queda para planar.", 254, CONTROLS_FONT);
+        centered(g, "Após comprar: D: dash; segure ESPAÇO: planar; pulo duplo: pressione pular novamente no ar.", 254, CONTROLS_FONT);
         int row = 0;
         for (AbilityShop.Item item : AbilityShop.Item.values()) {
-            int y = 292 + row * 44;
+            int y = 284 + row * 34;
             g.setFont(OVERLAY_HINT);
             g.setColor(INK);
             g.drawString((row + 1) + "  " + item.label, 180, y);
             g.setColor(RING_GOLD);
-            g.drawString(item.price + " argolas", 440, y);
+            g.drawString(AbilityShop.price(model.progress(), item) + " argolas", 440, y);
             boolean owned = model.progress().unlockedAbilities().contains(item.ability);
-            boolean affordable = model.progress().balance() >= item.price;
+            boolean affordable = model.progress().balance() >= AbilityShop.price(model.progress(), item);
             g.setColor(owned || affordable ? ACCENT : OBSTACLE_FILL);
             g.drawString(owned ? "Adquirido" : affordable ? "Disponível"
-                : "Faltam " + (item.price - model.progress().balance()), 650, y);
+                : "Faltam " + (AbilityShop.price(model.progress(), item) - model.progress().balance()), 650, y);
             row++;
         }
         g.setColor(INK);
-        centered(g, shopMessage, 380, OVERLAY_SUBTITLE);
+        centered(g, shopMessage, 394, OVERLAY_SUBTITLE);
         g.setColor(ACCENT);
-        centered(g, "1 / 2 comprar     B / ESC voltar ao resumo", 420, OVERLAY_HINT);
+        centered(g, "1 / 2 / 3 comprar     B / ESC voltar ao resumo", 420, OVERLAY_HINT);
     }
 
     private void centered(Graphics2D g, String text, int baseline, Font font) {

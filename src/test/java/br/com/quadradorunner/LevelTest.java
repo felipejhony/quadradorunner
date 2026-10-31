@@ -6,12 +6,12 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class LevelTest {
-    @Test void standardLevelHasStableExplicitUniqueRingIdsAndPreservesExistingMap() {
+    @Test void standardLevelHasStableExplicitUniqueRingIdsAndRandomObstacles() {
         Level first = Level.standard();
         Level second = Level.standard();
         assertEquals("level-01", first.id);
-        assertEquals(17, first.obstacles.size());
-        assertEquals(3, first.powerUps.size());
+        assertTrue(first.obstacles.size() >= 18 && first.obstacles.size() <= 25);
+        assertTrue(first.powerUps.isEmpty());
         assertEquals(12, first.rings.size());
         assertEquals(first.rings, second.rings);
         assertEquals(12, first.rings.stream().map(Ring::id).distinct().count());

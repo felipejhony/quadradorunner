@@ -18,7 +18,7 @@ class LevelSelectionTest {
         return new GameProgress(2,
             Set.of(new GameProgress.RingId("level-01", "ring-01"),
                 new GameProgress.RingId("level-02", "ring-01")),
-            Set.of(GameProgress.Ability.DASH), Set.of("level-01", "level-02"));
+            Set.of(GameProgress.Ability.DASH), Set.of("level-01"));
     }
 
     @Test void selectionPreservesPermanentSnapshotAndResetsAttempt() {
@@ -118,6 +118,69 @@ class LevelSelectionTest {
             assertEquals(1, session.levelNumber());
             assertEquals(new GameProgress(), session.current().progress());
         });
+    }
+
+    @Test void arrowsSelectUnlockedLevelsAndEnterStartsHighlightedLevel() throws Exception {
+        SwingUtilities.invokeAndWait(() -> {
+            GameSession session = new GameSession(Level.campaign(), progress());
+            GamePanel panel = new GamePanel(session, GameAudio::new, snapshot -> { });
+            press(panel, "F");
+            press(panel, "DOWN");
+            press(panel, "ENTER");
+            assertEquals(2, session.levelNumber());
+            assertEquals(GameModel.State.READY, session.current().state);
+            panel.getActionMap().get("released F").actionPerformed(null);
+            panel.getActionMap().get("released ENTER").actionPerformed(null);
+            press(panel, "F");
+            press(panel, "RIGHT"); // Wrap past the locked third level.
+            press(panel, "ENTER");
+            assertEquals(1, session.levelNumber());
+        });
+    }
+
+    @Test void swingKeyBindingsKeepSelectionVisibleAndActivateItWithoutMouse() throws Exception {
+        SwingUtilities.invokeAndWait(() -> {
+            GameSession session = new GameSession(Level.campaign(), progress());
+            GamePanel panel = new GamePanel(session, GameAudio::new, snapshot -> { });
+            keyStroke(panel, "F");
+            JPanel choices = java.util.Arrays.stream(panel.getComponents())
+                .filter(component -> component instanceof JPanel).map(component -> (JPanel) component)
+                .findFirst().orElseThrow();
+            assertTrue(((JButton) choices.getComponent(0)).isSelected());
+            keyStroke(panel, "DOWN");
+            assertFalse(((JButton) choices.getComponent(0)).isSelected());
+            assertTrue(((JButton) choices.getComponent(1)).isSelected());
+            BufferedImage selected = buttonImage((JButton) choices.getComponent(1));
+            keyStroke(panel, "UP");
+            BufferedImage unselected = buttonImage((JButton) choices.getComponent(1));
+            assertNotEquals(selected.getRGB(15, 15), unselected.getRGB(15, 15));
+            keyStroke(panel, "LEFT"); // Skip the locked third phase.
+            assertTrue(((JButton) choices.getComponent(1)).isSelected());
+            keyStroke(panel, "ENTER");
+            assertEquals(2, session.levelNumber());
+            assertFalse(choices.isVisible());
+            keyStroke(panel, "F");
+            keyStroke(panel, "RIGHT");
+            keyStroke(panel, "SPACE");
+            assertEquals(1, session.levelNumber());
+        });
+    }
+
+    private BufferedImage buttonImage(JButton button) {
+        button.setSize(640, 55);
+        BufferedImage image = new BufferedImage(640, 55, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = image.createGraphics();
+        try { button.paint(graphics); } finally { graphics.dispose(); }
+        return image;
+    }
+
+    private void keyStroke(GamePanel panel, String key) {
+        for (String event : new String[]{"pressed ", "released "}) {
+            Object action = panel.getInputMap(javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .get(javax.swing.KeyStroke.getKeyStroke(event + key));
+            assertNotNull(action, "Missing binding: " + event + key);
+            panel.getActionMap().get(action).actionPerformed(null);
+        }
     }
 
     private void press(GamePanel panel, String key) {

@@ -28,7 +28,7 @@ final class ResetConfirmation {
         title.setForeground(GameUi.DANGER);
         content.add(title, BorderLayout.NORTH);
         JLabel description = new JLabel("<html>Saldo, argolas, habilidades e conclusões serão apagados.<br>"
-            + "Os cristais voltam e somente a fase 1 fica liberada.<br><br>"
+            + "As habilidades s?o bloqueadas e somente a fase 1 fica liberada.<br><br>"
             + "Esta ação não pode ser desfeita. Para repetir só a tentativa, use R.</html>");
         description.setFont(GameUi.regular(14));
         description.setForeground(GameUi.TEXT);

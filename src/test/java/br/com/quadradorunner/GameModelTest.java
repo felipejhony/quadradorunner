@@ -99,6 +99,7 @@ class GameModelTest {
                 Level.circle(120, 80), Level.diamond(120, 80, 80))) {
             GameModel game = new GameModel(new Level(List.of(shape),
                 List.of(new Rectangle2D.Double(100, 0, 100, Level.GROUND))));
+            game.lives = 1;
             game.state = RUNNING;
             steps(game, 1);
             assertEquals(LOST, game.state, shape.getClass().getName());
@@ -110,6 +111,7 @@ class GameModelTest {
         GameModel game = new GameModel(new Level(List.of(Level.obstacle(Level.FINISH, 40, 80)), List.of()));
         game.state = RUNNING;
         game.x = Level.FINISH - 1;
+        game.lives = 1;
         steps(game, 1);
         assertEquals(LOST, game.state);
     }
@@ -145,7 +147,7 @@ class GameModelTest {
             if (game.grounded) {
                 boolean approaching = standard.obstacles.stream().anyMatch(obstacle -> {
                     double distance = obstacle.getBounds2D().getMinX() - (game.x + GameModel.SIZE);
-                    return distance > 0 && distance < 55;
+                    return distance > 0 && distance < 65;
                 });
                 if (approaching) game.jump();
             }

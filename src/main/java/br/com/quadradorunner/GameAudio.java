@@ -9,11 +9,13 @@ import java.util.logging.Logger;
 
 /** Serializes device access off the EDT. A failed device leaves the game playable. */
 final class GameAudio implements AutoCloseable {
+    enum Music { NIGHT, SUNRISE }
     enum Effect { JUMP, COLLECT, LOSE, WIN, DASH, GLIDE, PURCHASE, DENIED }
 
     interface Output extends AutoCloseable {
         void play(Effect effect);
         void music(boolean playing);
+        default void theme(Music music) { }
         void silence();
         @Override void close();
     }
@@ -49,8 +51,13 @@ final class GameAudio implements AutoCloseable {
     }
 
     void configure(boolean muted, boolean paused) {
+        configure(muted, paused, Music.NIGHT);
+    }
+
+    void configure(boolean muted, boolean paused, Music music) {
         this.muted = muted;
         submit(device -> {
+            device.theme(music);
             if (muted || paused) device.silence();
             device.music(!muted && !paused);
         });

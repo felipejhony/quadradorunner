@@ -26,11 +26,16 @@ final class GameButton extends JButton {
         setBorder(BorderFactory.createEmptyBorder(8, 14, 8, 14));
     }
 
+    void setKeyboardSelected(boolean selected) {
+        getModel().setSelected(selected);
+        repaint();
+    }
+
     @Override protected void paintComponent(Graphics graphics) {
         Graphics2D g = (Graphics2D) graphics.create();
         try {
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            boolean highlighted = isEnabled() && (getModel().isRollover() || hasFocus());
+            boolean highlighted = isEnabled() && (getModel().isSelected() || getModel().isRollover() || hasFocus());
             Color fill = destructive ? new Color(45, 28, 40) : GameUi.SURFACE;
             if (highlighted) fill = destructive ? new Color(73, 37, 48) : new Color(27, 58, 70);
             if (getModel().isPressed() && isEnabled()) fill = fill.brighter();
@@ -38,7 +43,8 @@ final class GameButton extends JButton {
             g.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 12, 12);
             g.setColor(!isEnabled() ? GameUi.EDGE
                 : destructive ? GameUi.DANGER : highlighted ? GameUi.MINT : GameUi.EDGE);
-            g.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 12, 12);
+            if (getModel().isSelected()) g.setStroke(new java.awt.BasicStroke(3));
+            g.drawRoundRect(2, 2, getWidth() - 5, getHeight() - 5, 12, 12);
             g.setFont(getFont());
             g.setColor(isEnabled() ? getForeground() : GameUi.MUTED);
             var metrics = g.getFontMetrics();

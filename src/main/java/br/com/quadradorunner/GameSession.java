@@ -46,7 +46,12 @@ final class GameSession {
         for (int i = 0; i < target; i++) {
             if (!current.progress().completedLevelIds().contains(levels.get(i).id)) return false;
         }
-        return current.progress().unlockedAbilities().containsAll(levels.get(target).requiredAbilities);
+        return true;
+    }
+
+    void update(double dt) {
+        current.update(dt);
+        if (current.state == GameModel.State.LOST && current.lives == 0) reset();
     }
 
     void reset() {
@@ -58,10 +63,7 @@ final class GameSession {
     boolean hasNextLevel() { return index + 1 < levels.size(); }
 
     Set<GameProgress.Ability> missingNextAbilities() {
-        if (!hasNextLevel()) return Set.of();
-        Set<GameProgress.Ability> missing = new HashSet<>(levels.get(index + 1).requiredAbilities);
-        missing.removeAll(current.progress().unlockedAbilities());
-        return Set.copyOf(missing);
+        return Set.of();
     }
 
     boolean isShopOpen() { return shopOpen; }

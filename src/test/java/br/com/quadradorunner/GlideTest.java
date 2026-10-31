@@ -185,6 +185,7 @@ class GlideTest {
                 Level.circle(146, 80), Level.diamond(146, 2, 80))) {
             GameModel model = unlocked(new Level(List.of(obstacle), List.of()));
             falling(model);
+            model.lives = 1;
             model.y = 374;
             model.setGlideHeld(true);
             steps(model, 24);

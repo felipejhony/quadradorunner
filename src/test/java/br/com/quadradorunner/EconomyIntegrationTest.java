@@ -77,6 +77,7 @@ class EconomyIntegrationTest {
         Ring missed = ring("two", 450);
         Level level = new Level("a", List.of(Level.obstacle(200, 40, 40)), List.of(), List.of(first, missed));
         GameModel model = running(level, new GameProgress());
+        model.lives = 1;
         for (int i = 0; i < 500 && model.state == GameModel.State.RUNNING; i++) step(model);
         assertEquals(GameModel.State.LOST, model.state);
         assertEquals(1, model.progress().balance());
@@ -183,6 +184,7 @@ class EconomyIntegrationTest {
     private void step(GameModel model) { model.update(FixedStepLoop.STEP); }
 
     private void runToFinish(GameModel model) {
+        model.lives = 1;
         for (int i = 0; i < 5000 && model.state == GameModel.State.RUNNING; i++) step(model);
         assertEquals(GameModel.State.WON, model.state, "Failed at x=" + model.x);
     }

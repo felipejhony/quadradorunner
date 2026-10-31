@@ -14,49 +14,38 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class CampaignPanelTest {
-    @Test void summaryBlocksAdvanceUntilPurchaseAndPreservesProgressDuringTransition() throws Exception {
+    @Test void summaryAdvancesWithoutPurchasesAndPreservesProgress() throws Exception {
         SwingUtilities.invokeAndWait(() -> {
-            GameSession session = new GameSession(Level.campaign(), new GameProgress(4, Set.of(), Set.of(), Set.of()));
+            GameSession session = new GameSession(Level.campaign(), new GameProgress());
             List<GameProgress> saved = new ArrayList<>();
             GamePanel panel = new GamePanel(session, GameAudio::new, saved::add);
             win(panel, session);
-            assertFalse(session.canAdvance());
-            render(panel, "campaign-dash-locked");
-            tap(panel, "ENTER");
-            assertEquals(1, session.levelNumber());
-            tap(panel, "B");
-            tap(panel, "1");
-            tap(panel, "B");
             assertTrue(session.canAdvance());
-            render(panel, "campaign-dash-unlocked");
-            GameProgress bought = session.current().progress();
+            GameProgress progress = session.current().progress();
             tap(panel, "ENTER");
             assertEquals(2, session.levelNumber());
-            assertSame(bought, session.current().progress());
+            assertSame(progress, session.current().progress());
             assertEquals(GameModel.State.READY, session.current().state);
-            render(panel, "campaign-dash-ready");
+            render(panel, "sunrise-ready");
             win(panel, session);
-            assertFalse(session.canAdvance());
-            assertEquals(Set.of(GameProgress.Ability.GLIDE), session.missingNextAbilities());
-            render(panel, "campaign-glide-locked");
+            assertTrue(session.canAdvance());
             tap(panel, "ENTER");
-            assertEquals(2, session.levelNumber());
-            assertEquals(3, saved.size()); // First win, purchase, second win.
-            assertEquals(0, session.current().progress().balance());
+            assertEquals(3, session.levelNumber());
+            assertEquals(2, saved.size());
+            assertTrue(session.current().progress().unlockedAbilities().isEmpty());
         });
     }
 
-    @Test void rendersBothSkillGatesWithDistinctVisualInstructions() throws Exception {
+    @Test void sunriseUsesWarmBackgroundAndCampaignHasNoSkillGates() throws Exception {
         SwingUtilities.invokeAndWait(() -> {
-            for (int index : List.of(1, 2)) {
-                GameSession session = at(index);
-                session.current().state = GameModel.State.RUNNING;
-                GamePanel panel = new GamePanel(session, GameAudio::new, ignored -> { });
-                BufferedImage image = render(panel, index == 1 ? "route-dash" : "route-glide");
-                int expected = (index == 1 ? new Color(181, 157, 255) : new Color(134, 234, 255)).getRGB();
-                assertEquals(expected, image.getRGB(650, 200));
-                assertEquals(index + 1, session.levelNumber());
-            }
+            GameSession session = at(1);
+            session.current().state = GameModel.State.RUNNING;
+            GamePanel panel = new GamePanel(session, GameAudio::new, ignored -> { });
+            BufferedImage image = render(panel, "sunrise-running");
+            Color sky = new Color(image.getRGB(500, 160));
+            assertTrue(sky.getRed() > sky.getBlue());
+            assertTrue(session.current().level.obstacles.size() >= 6);
+            for (Level level : Level.campaign()) assertTrue(level.gates.isEmpty());
         });
     }
 

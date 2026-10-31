@@ -69,6 +69,7 @@ class RingCollectionTest {
         Level level = new Level("a", List.of(Level.obstacle(110, 80, 80)), List.of(), List.of(ring));
         GameModel model = new GameModel(level);
         model.state = GameModel.State.RUNNING;
+        model.lives = 1;
         step(model);
         assertEquals(GameModel.State.LOST, model.state);
         assertEquals(new GameProgress(), model.progress());

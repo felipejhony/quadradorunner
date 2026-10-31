@@ -8,9 +8,15 @@ final class AudioSamples {
     private AudioSamples() { }
 
     static byte[] music() {
+        return music(GameAudio.Music.NIGHT);
+    }
+
+    static byte[] music(GameAudio.Music music) {
         double[] samples = new double[(int) (SAMPLE_RATE * MUSIC_SECONDS)];
         // Four slow major/minor seventh chords, with a soft pentatonic arpeggio.
-        int[][] chords = {{48, 52, 55, 59}, {45, 48, 52, 55}, {41, 45, 48, 52}, {43, 47, 50, 57}};
+        int[][] chords = music == GameAudio.Music.SUNRISE
+            ? new int[][] {{60, 64, 67, 71}, {65, 69, 72, 76}, {67, 71, 74, 78}, {60, 64, 67, 72}}
+            : new int[][] {{48, 52, 55, 59}, {45, 48, 52, 55}, {41, 45, 48, 52}, {43, 47, 50, 57}};
         for (int chord = 0; chord < chords.length; chord++) {
             for (int note : chords[chord]) addTone(samples, chord * 4, 4, note, note, 0.022);
             for (int beat = 0; beat < 8; beat++) {

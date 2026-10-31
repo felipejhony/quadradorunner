@@ -6,7 +6,7 @@ import java.util.Set;
 /** Immutable permanent-progress snapshot, independent of a running game and storage. */
 record GameProgress(int balance, Set<RingId> collectedRings, Set<Ability> unlockedAbilities,
                     Set<String> completedLevelIds) {
-    enum Ability { DASH, GLIDE }
+    enum Ability { DASH, GLIDE, DOUBLE_JUMP }
 
     /** A ring ID is scoped to its level; no string concatenation or positional index. */
     record RingId(String levelId, String ringId) {

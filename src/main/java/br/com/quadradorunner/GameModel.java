@@ -9,6 +9,11 @@ import static br.com.quadradorunner.Level.*;
 /** Game rules independent of Swing. Owned by the event dispatch thread in the UI. */
 final class GameModel {
     static final int SIZE = 34;
+    static final int MAX_LIVES = 3;
+    static final double HIT_INVULNERABILITY = 1.0;
+    int lives = MAX_LIVES;
+    private double invulnerabilityRemaining;
+    private final java.util.Set<Shape> touchedObstacles = new HashSet<>();
     static final double START_X = 100;
     static final double SPEED = 260;
     private static final double GRAVITY = 1700;
@@ -31,6 +36,7 @@ final class GameModel {
     private boolean glideHeld;
     private GameProgress.Ability blockedGate;
     record LevelSummary(String levelId, int newRings, int totalBalance) { }
+    private double worldTime;
     double powerRemaining;
     int jumpsUsed;
     State state = State.READY;
@@ -103,7 +109,7 @@ final class GameModel {
 
     boolean jump() {
         if (state == State.READY) state = State.RUNNING;
-        if (state == State.RUNNING && (grounded || (powerRemaining > 0 && jumpsUsed < 2))) {
+        if (state == State.RUNNING && (grounded || ((powerRemaining > 0 || progress.unlockedAbilities().contains(GameProgress.Ability.DOUBLE_JUMP)) && jumpsUsed < 2))) {
             velocityY = JUMP_SPEED;
             grounded = false;
             jumpsUsed++;
@@ -113,6 +119,10 @@ final class GameModel {
     }
 
     void restart() {
+        worldTime = 0;
+        lives = MAX_LIVES;
+        invulnerabilityRemaining = 0;
+        touchedObstacles.clear();
         x = START_X;
         y = GROUND - SIZE;
         velocityY = 0;
@@ -160,22 +170,38 @@ final class GameModel {
     }
 
     private void updateMovement(double dt, double speed) {
+        worldTime += dt;
+        invulnerabilityRemaining = countDown(invulnerabilityRemaining, dt);
         powerRemaining = Math.max(0, powerRemaining - dt);
         x += speed * dt;
         boolean gliding = isGliding();
         velocityY += (gliding ? GLIDE_GRAVITY : GRAVITY) * dt;
         if (gliding) velocityY = Math.min(velocityY, GLIDE_MAX_FALL_SPEED);
+        double previousY = y;
         y += velocityY * dt;
-        if (y >= GROUND - SIZE) {
+        grounded = false;
+        if (velocityY >= 0 && previousY <= GROUND - SIZE && y >= GROUND - SIZE
+                && level.hasGround(x, SIZE)) {
             y = GROUND - SIZE;
             velocityY = 0;
             grounded = true;
             jumpsUsed = 0;
         }
+        if (y > GROUND + SIZE * 2) {
+            int remainingLives = lives;
+            int attemptRings = ringsCollectedThisAttempt;
+            restart();
+            lives = remainingLives;
+            ringsCollectedThisAttempt = attemptRings;
+            return;
+        }
         Rectangle2D.Double player = new Rectangle2D.Double(x, y, SIZE, SIZE);
         for (Shape obstacle : level.obstacles) {
-            if (obstacle.intersects(player)) {
-                state = State.LOST;
+            if (obstacleShape(obstacle).intersects(player) && touchedObstacles.add(obstacle)
+                    && invulnerabilityRemaining == 0) {
+                lives--;
+                invulnerabilityRemaining = HIT_INVULNERABILITY;
+                if (lives == 0) state = State.LOST;
                 break;
             }
         }
@@ -184,6 +210,7 @@ final class GameModel {
                 boolean active = switch (gate.ability()) {
                     case DASH -> isDashing();
                     case GLIDE -> isGliding();
+                    case DOUBLE_JUMP -> jumpsUsed == 2;
                 };
                 if (gate.intersects(player) && !active) {
                     blockedGate = gate.ability();
@@ -212,10 +239,22 @@ final class GameModel {
         }
     }
 
+    Shape obstacleShape(Shape obstacle) {
+        int index = level.obstacles.indexOf(obstacle);
+        double offset = index % 3 == 0 ? -16 * (1 - Math.cos(worldTime * 2)) : 0;
+        return java.awt.geom.AffineTransform.getTranslateInstance(0, offset).createTransformedShape(obstacle);
+    }
+
+    Ring movingRing(Ring ring) {
+        double amplitude = ring.y() >= GROUND - 40 ? 4 : 12;
+        double offset = -amplitude * (1 - Math.cos(worldTime * 2 + ring.x() / 200));
+        return new Ring(ring.id(), ring.x(), Math.max(0, ring.y() + offset));
+    }
+
     private void collectRings(Rectangle2D player) {
         for (Ring ring : level.rings) {
             if (progress.balance() == Integer.MAX_VALUE) return;
-            if (!isRingCollected(ring) && ring.intersects(player)) {
+            if (!isRingCollected(ring) && movingRing(ring).intersects(player)) {
                 var rings = new HashSet<>(progress.collectedRings());
                 rings.add(new GameProgress.RingId(level.id, ring.id()));
                 progress = new GameProgress(progress.balance() + 1, rings,

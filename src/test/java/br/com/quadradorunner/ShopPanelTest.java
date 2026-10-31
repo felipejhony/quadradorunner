@@ -61,7 +61,7 @@ class ShopPanelTest {
         Level level = Level.standard();
         Set<GameProgress.RingId> rings = level.rings.stream()
             .map(ring -> new GameProgress.RingId(level.id, ring.id())).collect(Collectors.toSet());
-        GameProgress initial = new GameProgress(12, rings, Set.of(), Set.of());
+        GameProgress initial = new GameProgress(15, rings, Set.of(), Set.of());
         try {
             SwingUtilities.invokeAndWait(() -> {
                 GameSession session = new GameSession(List.of(level), initial);
@@ -93,7 +93,7 @@ class ShopPanelTest {
 
     @Test void rendersAvailableInsufficientAndOwnedItemsWithPurchaseFeedback() throws Exception {
         SwingUtilities.invokeAndWait(() -> {
-            GameSession session = session(new GameProgress(10, Set.of(), Set.of(), Set.of()));
+            GameSession session = session(new GameProgress(13, Set.of(), Set.of(), Set.of()));
             GamePanel panel = new GamePanel(session, GameAudio::new, progress -> { });
             win(panel, session);
             press(panel, "B");

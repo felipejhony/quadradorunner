@@ -20,14 +20,14 @@ class GlidePanelTest {
             falling(model);
             List<GameProgress> saves = new ArrayList<>();
             GamePanel panel = new GamePanel(model, GameAudio::new, saves::add);
-            press(panel, "G");
-            press(panel, "G");
+            press(panel, "SPACE");
+            press(panel, "SPACE");
             assertTrue(model.isGliding());
             panel.updateGame(FixedStepLoop.STEP);
             assertEquals(120, model.velocityY);
-            release(panel, "G");
+            release(panel, "SPACE");
             assertFalse(model.isGliding());
-            press(panel, "G");
+            press(panel, "SPACE");
             panel.pauseForFocusLoss();
             double y = model.y;
             panel.updateGame(FixedStepLoop.STEP);
@@ -37,8 +37,8 @@ class GlidePanelTest {
             assertEquals(GameModel.State.PAUSED, model.state);
             press(panel, "P");
             assertFalse(model.isGliding());
-            release(panel, "G");
-            press(panel, "G");
+            release(panel, "SPACE");
+            press(panel, "SPACE");
             assertTrue(model.isGliding());
             release(panel, "P");
             press(panel, "P");
@@ -46,10 +46,10 @@ class GlidePanelTest {
             press(panel, "P");
             assertEquals(GameModel.State.RUNNING, model.state);
             assertFalse(model.isGliding());
-            press(panel, "G"); // Still held: repeat cannot re-arm after pause.
+            press(panel, "SPACE"); // Still held: repeat cannot re-arm after pause.
             assertFalse(model.isGliding());
-            release(panel, "G");
-            press(panel, "G");
+            release(panel, "SPACE");
+            press(panel, "SPACE");
             assertTrue(model.isGliding());
             press(panel, "R");
             assertFalse(model.isGliding());
@@ -62,7 +62,7 @@ class GlidePanelTest {
             GameSession session = new GameSession(List.of(level("a"), level("b")), progress());
             GamePanel panel = new GamePanel(session, GameAudio::new, ignored -> { });
             press(panel, "SPACE");
-            press(panel, "G");
+            press(panel, "SPACE");
             assertFalse(session.current().isGliding());
             for (int i = 0; i < 60; i++) panel.updateGame(FixedStepLoop.STEP);
             assertTrue(session.current().isGliding());
@@ -75,10 +75,10 @@ class GlidePanelTest {
             assertEquals("b", next.level.id);
             assertEquals(GameModel.State.READY, next.state);
             falling(next);
-            press(panel, "G"); // Held from previous level, not a new command.
+            press(panel, "SPACE"); // Held from previous level, not a new command.
             assertFalse(next.isGliding());
-            release(panel, "G");
-            press(panel, "G");
+            release(panel, "SPACE");
+            press(panel, "SPACE");
             assertTrue(next.isGliding());
         });
     }
@@ -88,19 +88,19 @@ class GlidePanelTest {
             GameModel model = new GameModel(level("a"), progress());
             falling(model);
             GamePanel panel = new GamePanel(model);
-            press(panel, "G");
+            press(panel, "SPACE");
             BufferedImage active = render(panel, "glide-active");
             int cyan = new Color(134, 234, 255).getRGB();
             assertEquals(cyan, active.getRGB(117, 160));
             assertEquals(cyan, active.getRGB(110, 190));
-            release(panel, "G");
+            release(panel, "SPACE");
             BufferedImage released = render(panel, "glide-released");
             assertNotEquals(cyan, released.getRGB(117, 160));
             assertNotEquals(cyan, released.getRGB(110, 190));
             GameModel locked = new GameModel(level("a"));
             falling(locked);
             GamePanel lockedPanel = new GamePanel(locked);
-            press(lockedPanel, "G");
+            press(lockedPanel, "SPACE");
             assertFalse(locked.isGliding());
             render(lockedPanel, "glide-locked");
         });

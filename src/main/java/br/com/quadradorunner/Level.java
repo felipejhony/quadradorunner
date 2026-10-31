@@ -16,6 +16,11 @@ final class Level {
     final String id;
     final String title;
     final int finish;
+    final List<Pit> pits;
+    record Pit(int x, int width) {
+        Pit { if (x < 0 || width <= 0) throw new IllegalArgumentException("Invalid pit"); }
+        int end() { return x + width; }
+    }
     final List<Shape> obstacles;
     final List<Rectangle2D.Double> powerUps;
     final List<Ring> rings;
@@ -32,6 +37,12 @@ final class Level {
 
     Level(String id, String title, int finish, List<Shape> obstacles,
           List<Rectangle2D.Double> powerUps, List<Ring> rings, List<AbilityGate> gates) {
+        this(id, title, finish, obstacles, powerUps, rings, gates, List.of());
+    }
+
+    Level(String id, String title, int finish, List<Shape> obstacles,
+          List<Rectangle2D.Double> powerUps, List<Ring> rings, List<AbilityGate> gates, List<Pit> pits) {
+        this.pits = List.copyOf(pits);
         this.id = Objects.requireNonNull(id, "id");
         if (id.isBlank()) throw new IllegalArgumentException("Level ID cannot be blank");
         this.title = Objects.requireNonNull(title, "title");
@@ -57,20 +68,11 @@ final class Level {
     }
 
     static Level standard() {
-        List<Shape> obstacles = List.of(
-            obstacle(650, 40, 44), obstacle(1050, 48, 60),
-            triangle(1460, 70, 65), circle(1910, 70),
-            obstacle(2330, 90, 48), obstacle(2820, 55, 66),
-            diamond(3260, 80, 90), obstacle(3710, 50, 80),
-            triangle(4200, 90, 85), circle(4660, 76),
-            diamond(5100, 90, 100), obstacle(5570, 90, 65),
-            triangle(6040, 100, 90), circle(6500, 85),
-            diamond(6960, 90, 100), obstacle(7430, 100, 60),
-            triangle(7900, 100, 85));
-        List<Rectangle2D.Double> powerUps = List.of(
-            new Rectangle2D.Double(1200, GROUND - 60, 28, 28),
-            new Rectangle2D.Double(3900, GROUND - 60, 28, 28),
-            new Rectangle2D.Double(6750, GROUND - 60, 28, 28));
+        return standard(new java.util.Random());
+    }
+
+    static Level standard(java.util.Random random) {
+        List<Rectangle2D.Double> powerUps = List.of();
         // Explicit IDs must survive reordering and future changes to world positions.
         List<Ring> rings = List.of(
             new Ring("ring-01", 350, GROUND - 36), new Ring("ring-02", 850, GROUND - 130),
@@ -79,7 +81,13 @@ final class Level {
             new Ring("ring-07", 3070, GROUND - 100), new Ring("ring-08", 3500, GROUND - 36),
             new Ring("ring-09", 4450, GROUND - 120), new Ring("ring-10", 4850, GROUND - 36),
             new Ring("ring-11", 5800, GROUND - 120), new Ring("ring-12", 8150, GROUND - 36));
-        return new Level(STANDARD_ID, "A pista", FINISH, obstacles, powerUps, rings, List.of());
+        return ObstacleDetector.fill(new Level(STANDARD_ID, "A pista", FINISH,
+            List.of(), powerUps, rings, List.of()), random);
+    }
+
+    private static boolean overlapsRingCorridor(int x, int width, List<Ring> rings) {
+        return rings.stream().anyMatch(ring -> x < ring.x() + Ring.DIAMETER + 20
+            && x + width + 20 > ring.x());
     }
 
     static List<Level> campaign() {
@@ -87,19 +95,50 @@ final class Level {
     }
 
     static Level dashRoute() {
-        return new Level("level-02", "Passagem veloz", 2000, List.of(), List.of(), List.of(
-            new Ring("ring-01", 350, GROUND - 36), new Ring("ring-02", 500, GROUND - 36),
-            new Ring("ring-03", 850, GROUND - 36), new Ring("ring-04", 1100, GROUND - 36),
-            new Ring("ring-05", 1400, GROUND - 36), new Ring("ring-06", 1750, GROUND - 36)),
-            List.of(new AbilityGate("dash-gate", 650, 28, GameProgress.Ability.DASH)));
+        return dashRoute(new java.util.Random());
+    }
+
+    static Level dashRoute(java.util.Random random) {
+        return ObstacleDetector.fill(withRandomPits(new Level("level-02", "Amanhecer", FINISH,
+            List.of(),
+            List.of(), List.of(
+                new Ring("ring-01", 350, GROUND - 36), new Ring("ring-02", 500, GROUND - 36),
+                new Ring("ring-03", 850, GROUND - 36), new Ring("ring-04", 1220, GROUND - 36),
+                new Ring("ring-05", 1630, GROUND - 36), new Ring("ring-06", 2940, GROUND - 36)),
+            List.of()), random), random);
     }
 
     static Level glideRoute() {
-        return new Level("level-03", "Corrente aérea", 1800, List.of(), List.of(), List.of(
+        return glideRoute(new java.util.Random());
+    }
+
+    static Level glideRoute(java.util.Random random) {
+        return ObstacleDetector.fill(withRandomPits(new Level("level-03", "Corrente aérea", FINISH, List.of(), List.of(), List.of(
             new Ring("ring-01", 350, GROUND - 36), new Ring("ring-02", 550, GROUND - 130),
             new Ring("ring-03", 720, GROUND - 120), new Ring("ring-04", 1050, GROUND - 36),
             new Ring("ring-05", 1300, GROUND - 36), new Ring("ring-06", 1650, GROUND - 36)),
-            List.of(new AbilityGate("glide-current", 650, 40, GameProgress.Ability.GLIDE)));
+            List.of()), random), random);
+    }
+
+    static Level withRandomPits(Level level, java.util.Random random) {
+        List<Pit> pits = new java.util.ArrayList<>();
+        for (int section = 900; section < level.finish - 600; section += 900) {
+            for (int attempt = 0; attempt < 40; attempt++) {
+                Pit pit = new Pit(section + random.nextInt(300), 90 + random.nextInt(41));
+                boolean blocked = level.obstacles.stream().anyMatch(shape ->
+                    shape.getBounds2D().getMaxX() > pit.x() - 180
+                    && shape.getBounds2D().getMinX() < pit.end() + 180);
+                if (blocked || overlapsRingCorridor(pit.x(), pit.width(), level.rings)) continue;
+                pits.add(pit);
+                break;
+            }
+        }
+        return new Level(level.id, level.title, level.finish, level.obstacles,
+            level.powerUps, level.rings, level.gates, pits);
+    }
+
+    boolean hasGround(double x, double width) {
+        return pits.stream().noneMatch(pit -> x >= pit.x() && x + width <= pit.end());
     }
 
     static Rectangle2D.Double obstacle(int x, int width, int height) {

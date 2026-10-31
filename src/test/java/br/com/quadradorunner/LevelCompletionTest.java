@@ -65,6 +65,7 @@ class LevelCompletionTest {
     @Test void fatalCollisionNeverMarksLevelCompletedOrProvidesSummary() {
         GameModel model = new GameModel(new Level("a",
             List.of(Level.obstacle(Level.FINISH, 40, 80)), List.of(), List.of()));
+        model.lives = 1;
         win(model);
         assertEquals(GameModel.State.LOST, model.state);
         assertTrue(model.progress().completedLevelIds().isEmpty());

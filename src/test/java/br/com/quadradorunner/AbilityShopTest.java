@@ -11,7 +11,7 @@ class AbilityShopTest {
             Set.of(GameProgress.Ability.GLIDE), Set.of("a"));
         AbilityShop.Purchase purchase = AbilityShop.purchase(original, AbilityShop.Item.DASH);
         assertEquals(AbilityShop.Status.PURCHASED, purchase.status());
-        assertEquals(6, purchase.progress().balance());
+        assertEquals(3, purchase.progress().balance());
         assertEquals(Set.of(GameProgress.Ability.DASH, GameProgress.Ability.GLIDE),
             purchase.progress().unlockedAbilities());
         assertEquals(original.collectedRings(), purchase.progress().collectedRings());

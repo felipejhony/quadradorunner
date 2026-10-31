@@ -123,6 +123,7 @@ class DashTest {
                 Level.circle(146, 2), Level.diamond(146, 2, 80))) {
             GameModel model = unlocked(new Level(List.of(obstacle), List.of()));
             model.state = GameModel.State.RUNNING;
+            model.lives = 1;
             model.dash();
             steps(model, 24);
             assertEquals(GameModel.State.LOST, model.state, obstacle.getClass().getName());

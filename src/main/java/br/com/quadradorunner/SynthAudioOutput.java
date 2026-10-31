@@ -12,6 +12,7 @@ final class SynthAudioOutput implements GameAudio.Output {
     private final EnumMap<GameAudio.Effect, Clip> effects = new EnumMap<>(GameAudio.Effect.class);
     private Clip background;
     private boolean musicPlaying;
+    private GameAudio.Music theme = GameAudio.Music.NIGHT;
 
     SynthAudioOutput() {
         try {
@@ -42,6 +43,16 @@ final class SynthAudioOutput implements GameAudio.Output {
         clip.stop();
         clip.setFramePosition(0);
         clip.start();
+    }
+
+    @Override public void theme(GameAudio.Music next) {
+        if (theme == next) return;
+        Clip replacement = open(AudioSamples.music(next));
+        background.stop();
+        background.close();
+        background = replacement;
+        theme = next;
+        if (musicPlaying) background.loop(Clip.LOOP_CONTINUOUSLY);
     }
 
     @Override public void music(boolean playing) {
