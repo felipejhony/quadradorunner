@@ -55,6 +55,9 @@ public final class GamePanel extends JPanel {
     private final Supplier<GameAudio> audioFactory;
     private final Consumer<GameProgress> progressChanged;
     private final JButton resetButton = new JButton("Resetar todo o progresso");
+    private final JButton levelsButton = new JButton("Fases (F)");
+    private final JPanel levelChoices = new JPanel(new GridLayout(0, 1, 0, 10));
+    private boolean choosingLevel;
     private boolean resetting;
     private GameAudio audio;
     private boolean muted;
@@ -99,6 +102,15 @@ public final class GamePanel extends JPanel {
         resetButton.setFocusable(false);
         resetButton.addActionListener(event -> resetRequested.accept(this));
         add(resetButton);
+        levelsButton.setBounds(30, 478, 180, 26);
+        levelsButton.setFocusable(false);
+        levelsButton.addActionListener(event -> toggleLevelMenu());
+        add(levelsButton);
+        levelChoices.setOpaque(false);
+        levelChoices.setBounds(160, 210, 640, 200);
+        levelChoices.setVisible(false);
+        add(levelChoices);
+        bindKey("F", GameInput.Key.LEVELS, this::toggleLevelMenu);
         bindKey("SPACE", GameInput.Key.SPACE, this::jump);
         bindKey("UP", GameInput.Key.UP, this::jump);
         bindKey("D", GameInput.Key.DASH, () -> model.dash());
@@ -109,7 +121,8 @@ public final class GamePanel extends JPanel {
         });
         bindKey("P", GameInput.Key.PAUSE, () -> model.togglePause());
         bindKey("ESCAPE", GameInput.Key.ESCAPE, () -> {
-            if (session.isShopOpen()) session.closeShop();
+            if (choosingLevel) closeLevelMenu();
+            else if (session.isShopOpen()) session.closeShop();
             else model.togglePause();
         });
         bindKey("B", GameInput.Key.SHOP, () -> {
@@ -132,6 +145,45 @@ public final class GamePanel extends JPanel {
             null, new String[]{"Cancelar", "Resetar jogo"}, "Cancelar") == 1;
     }
 
+    private void toggleLevelMenu() {
+        if (resetting) return;
+        if (choosingLevel) closeLevelMenu();
+        else {
+            model.pause();
+            choosingLevel = true;
+            levelChoices.removeAll();
+            for (int i = 0; i < session.levelCount(); i++) {
+                int target = i;
+                Level level = session.levelAt(i);
+                boolean completed = model.progress().completedLevelIds().contains(level.id);
+                boolean unlocked = session.isLevelUnlocked(i);
+                JButton choice = new JButton((i + 1) + " — " + level.title + " — "
+                    + (completed ? "Concluída · rejogar" : unlocked ? "Liberada · jogar" : "Bloqueada"));
+                choice.setFocusable(false);
+                choice.setEnabled(unlocked);
+                choice.addActionListener(event -> {
+                    if (!resetting && session.selectLevel(target)) {
+                        model = session.current();
+                        shopMessage = "";
+                        closeLevelMenu();
+                        synchronizeTimer();
+                        repaint();
+                    }
+                });
+                levelChoices.add(choice);
+            }
+            levelChoices.setVisible(true);
+            levelChoices.revalidate();
+        }
+        synchronizeTimer();
+        repaint();
+    }
+
+    private void closeLevelMenu() {
+        choosingLevel = false;
+        levelChoices.setVisible(false);
+    }
+
     private void resetLocally() {
         if (confirmReset()) {
             beginReset();
@@ -143,6 +195,7 @@ public final class GamePanel extends JPanel {
 
     void beginReset() {
         resetting = true;
+        closeLevelMenu();
         input.clear();
         model.pause();
         timer.stop();
@@ -164,6 +217,8 @@ public final class GamePanel extends JPanel {
     }
 
     private void refreshResetButton() {
+        levelsButton.setVisible(model.state != GameModel.State.RUNNING);
+        levelsButton.setEnabled(!resetting);
         resetButton.setVisible(resetting || model.state != GameModel.State.RUNNING);
         resetButton.setEnabled(!resetting);
         resetButton.setText(resetting ? "Resetando progresso..." : "Resetar todo o progresso");
@@ -199,6 +254,8 @@ public final class GamePanel extends JPanel {
     private void bindKey(String stroke, GameInput.Key key, Runnable command, Runnable released) {
         bind("pressed " + stroke, () -> {
             if (resetting) return;
+            if (choosingLevel && key != GameInput.Key.LEVELS && key != GameInput.Key.ESCAPE
+                && key != GameInput.Key.MUTE) return;
             if (input.press(key)) {
                 command.run();
                 synchronizeTimer();
@@ -305,6 +362,15 @@ public final class GamePanel extends JPanel {
             drawBackground(g);
             drawWorld(g);
             drawHud(g);
+            if (choosingLevel) {
+                g.setColor(OVERLAY_SHADE);
+                g.fillRoundRect(100, 110, 760, 350, 24, 24);
+                g.setColor(INK);
+                centered(g, "ESCOLHER FASE", 160, OVERLAY_TITLE);
+                centered(g, "Saldo, compras e argolas coletadas serão preservados.", 193, CONTROLS_FONT);
+                centered(g, "F ou ESC para voltar · escolher reinicia a tentativa", 440, CONTROLS_FONT);
+                return;
+            }
             switch (model.state) {
                 case READY -> {
                     overlay(g, "QUADRADO RUNNER", readyMessage(), "ESPAÇO ou ↑ para começar e pular");

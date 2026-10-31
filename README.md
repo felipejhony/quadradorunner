@@ -38,6 +38,7 @@ java -cp target/classes br.com.quadradorunner.Main
 | G (manter pressionada) | Planar durante a queda, após comprar a habilidade |
 | P ou Esc | Pausar / continuar |
 | R | Reiniciar / rejogar a fase atual |
+| F | Abrir / fechar seleção de fases (Esc também fecha) |
 | Enter | Avançar após a vitória, quando houver próxima fase |
 | B | Abrir a loja após a vitória / voltar ao resumo |
 | 1 / 2 | Comprar Dash / Planar, dentro da loja |
@@ -83,7 +84,9 @@ O indicador mostra bloqueio, instrução de uso ou estado ativo. Durante o efeit
 
 Ao chegar à bandeira, o jogo mostra as **argolas novas coletadas naquela tentativa** e o **saldo total**. A conclusão é registrada no mesmo save, sem conceder recompensa adicional: as argolas já foram creditadas na coleta.
 
-Use **R** para rejogar a fase atual. O contador da tentativa volta a zero, mantendo o saldo e as argolas permanentemente coletadas. **Enter** avança para a próxima fase quando os requisitos estiverem atendidos, iniciando em estado de espera. Se faltar uma habilidade, o resumo informa qual comprar na loja. Depois da terceira fase, a tela informa que a campanha foi concluída e oferece o replay da fase atual. A seleção livre será adicionada na etapa 11 do plano.
+Use **R** para rejogar a fase atual. O contador da tentativa volta a zero, mantendo o saldo e as argolas permanentemente coletadas. **Enter** avança para a próxima fase quando os requisitos estiverem atendidos, iniciando em estado de espera. Se faltar uma habilidade, o resumo informa qual comprar na loja. Depois da terceira fase, a tela informa que a campanha foi concluída.
+
+Pressione **F** ou clique em **Fases (F)** nos menus para escolher uma fase. A lista indica fases concluídas, liberadas e bloqueadas; os botões bloqueados ficam desabilitados. É possível rejogar fases concluídas ou retomar a próxima liberada após reabrir o jogo, respeitando conclusões anteriores e habilidades exigidas. Escolher inicia uma nova tentativa, preservando saldo, compras e argolas ausentes. Abrir a seleção durante a corrida pausa a tentativa; **F** ou **Esc** cancela a seleção e mantém a pausa. Use P ou Esc depois de fechar para continuar. A fase selecionada não é salva: ao reabrir, use o menu para escolher novamente.
 
 ## Fases e desbloqueios
 

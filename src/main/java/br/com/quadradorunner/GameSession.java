@@ -30,6 +30,16 @@ final class GameSession {
     GameModel current() { return current; }
     int levelNumber() { return index + 1; }
     int levelCount() { return levels.size(); }
+    Level levelAt(int target) { return levels.get(target); }
+
+    boolean selectLevel(int target) {
+        if (!isLevelUnlocked(target)) return false;
+        GameProgress progress = current.progress();
+        index = target;
+        shopOpen = false;
+        current = new GameModel(levels.get(index), progress);
+        return true;
+    }
 
     boolean isLevelUnlocked(int target) {
         if (target < 0 || target >= levels.size()) return false;
