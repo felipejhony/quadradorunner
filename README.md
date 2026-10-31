@@ -37,6 +37,8 @@ java -cp target/classes br.com.quadradorunner.Main
 | P ou Esc | Pausar / continuar |
 | R | Reiniciar / rejogar a fase atual |
 | Enter | Avançar após a vitória, quando houver próxima fase |
+| B | Abrir a loja após a vitória / voltar ao resumo |
+| 1 / 2 | Comprar Dash / Planar, dentro da loja |
 | M | Silenciar / reativar música e efeitos |
 
 Solte todas as teclas de pulo antes de pressionar novamente para cada salto. Comandos ignoram a repetição automática do teclado. Ao perder o foco da janela, a partida pausa e limpa as teclas pressionadas; pressione P ou Esc para continuar. O pulo está um pouco mais alto para facilitar a corrida. Colete os cristais azuis com o número **2** para liberar um segundo salto no ar por **10 segundos**. Cada pouso renova os dois saltos enquanto o efeito estiver ativo. Um novo cristal renova a duração para 10 segundos; a pausa congela esse tempo. O indicador superior mostra a duração restante e os saltos disponíveis. Reiniciar restaura os cristais e remove o efeito.
@@ -49,7 +51,15 @@ A pista possui 12 argolas douradas. Encoste no disco de uma argola para coletá-
 
 O aplicativo carrega e salva automaticamente um slot em `${user.home}/.quadrado-runner/progress.properties`. As gravações acontecem fora da thread da interface, usando o formato versionado e a substituição atômica existentes. Fechar normalmente aguarda a gravação final; evite encerrar o processo à força enquanto salva. Se houver falha ao salvar, o jogo mantém o progresso em memória e permite repetir a tentativa ao fechar novamente. Saves inválidos ou de versão incompatível são preservados e informados ao carregar, sem começar silenciosamente do zero.
 
-A loja, as compras e a exibição do saldo no HUD serão implementadas nas etapas seguintes do plano.
+A loja exibe o saldo disponível entre fases; a exibição durante a corrida será refinada nas etapas seguintes do plano.
+
+## Loja entre fases
+
+Após concluir uma fase, pressione **B** no resumo para abrir a loja. O catálogo oferece **Dash por 4 argolas** (tecla **1**) e **Planar por 6 argolas** (tecla **2**). A tela mostra preço, saldo e se o item está disponível, já adquirido ou exige mais argolas. **B** ou **Esc** retorna ao resumo; **R** também permite rejogar a fase atual, mantendo as compras.
+
+Cada compra é permanente, debita o preço uma única vez e é salva automaticamente. Compras repetidas ou sem saldo são recusadas, preservando o progresso; gastar não restaura argolas já coletadas. A loja também funciona depois da última fase disponível. Saia da loja para usar Enter e avançar quando houver uma próxima fase.
+
+Esta etapa registra os desbloqueios; os movimentos de Dash e Planar serão implementados nas etapas 08 e 09. O salto duplo dos cristais continua funcionando independentemente das compras.
 
 ## Final de fase
 
@@ -63,6 +73,7 @@ Use **R** para rejogar a fase atual. O contador da tentativa volta a zero, mante
 - `GamePanel.java`: adapta entrada e timer do Swing; desenha mundo, câmera e HUD.
 - `GameModel.java`: estado, movimentação, saltos, colisões e power-ups, sem dependência de Swing.
 - `GameSession.java`: sequência de fases, replay e avanço com preservação do progresso.
+- `AbilityShop.java`: catálogo, preços e transação imutável de compra.
 - `Ring.java`: identidade local, posição e colisão das argolas.
 - `GameProgress.java`: snapshot imutável de saldo, argolas, habilidades e fases concluídas.
 - `GameProgressStore.java`: persistência local versionada com gravação atômica.

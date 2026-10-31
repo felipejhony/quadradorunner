@@ -40,6 +40,14 @@ final class GameModel {
 
     GameProgress progress() { return progress; }
 
+    AbilityShop.Status buy(AbilityShop.Item item) {
+        Objects.requireNonNull(item, "item");
+        if (state != State.WON) return AbilityShop.Status.UNAVAILABLE;
+        AbilityShop.Purchase purchase = AbilityShop.purchase(progress, item);
+        progress = purchase.progress();
+        return purchase.status();
+    }
+
     LevelSummary levelSummary() {
         if (state != State.WON) throw new IllegalStateException("The level has not been completed");
         return new LevelSummary(level.id, ringsCollectedThisAttempt, progress.balance());

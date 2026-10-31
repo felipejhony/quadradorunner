@@ -51,6 +51,7 @@ public final class GamePanel extends JPanel {
     private GameAudio audio;
     private boolean muted;
     private boolean windowFocused = true;
+    private String shopMessage = "";
     private final FixedStepLoop loop = new FixedStepLoop();
     private final GameInput input = new GameInput();
     private final Timer timer;
@@ -87,7 +88,16 @@ public final class GamePanel extends JPanel {
             if (session.advance()) model = session.current();
         });
         bindKey("P", GameInput.Key.PAUSE, () -> model.togglePause());
-        bindKey("ESCAPE", GameInput.Key.ESCAPE, () -> model.togglePause());
+        bindKey("ESCAPE", GameInput.Key.ESCAPE, () -> {
+            if (session.isShopOpen()) session.closeShop();
+            else model.togglePause();
+        });
+        bindKey("B", GameInput.Key.SHOP, () -> {
+            if (session.isShopOpen()) session.closeShop();
+            else if (session.openShop()) shopMessage = "";
+        });
+        bindKey("1", GameInput.Key.BUY_DASH, () -> buy(AbilityShop.Item.DASH));
+        bindKey("2", GameInput.Key.BUY_GLIDE, () -> buy(AbilityShop.Item.GLIDE));
         bindKey("M", GameInput.Key.MUTE, () -> muted = !muted);
         timer = new Timer(16, event -> tick());
         timer.setCoalesce(true);
@@ -95,6 +105,17 @@ public final class GamePanel extends JPanel {
 
     private void jump() {
         if (model.jump()) play(GameAudio.Effect.JUMP);
+    }
+
+    private void buy(AbilityShop.Item item) {
+        AbilityShop.Status status = session.buy(item);
+        shopMessage = switch (status) {
+            case PURCHASED -> item.label + " desbloqueado permanentemente!";
+            case ALREADY_OWNED -> "Você já possui " + item.label + ". Nenhuma argola foi gasta.";
+            case INSUFFICIENT_FUNDS -> "Saldo insuficiente para comprar " + item.label + ".";
+            case UNAVAILABLE -> "";
+        };
+        if (status == AbilityShop.Status.PURCHASED) progressChanged.accept(model.progress());
     }
 
     private void play(GameAudio.Effect effect) {
@@ -211,7 +232,10 @@ public final class GamePanel extends JPanel {
                 case READY -> overlay(g, "QUADRADO RUNNER", "Pegue os cristais azuis: salto duplo por 10 segundos!", "ESPAÇO ou ↑ para começar e pular");
                 case PAUSED -> overlay(g, "PAUSA", "Respire. A pista espera por você.", "P ou ESC para continuar");
                 case LOST -> overlay(g, "QUASE LÁ!", "Você bateu em um obstáculo. Tente pular um pouco antes.", "R para tentar novamente");
-                case WON -> drawLevelSummary(g);
+                case WON -> {
+                    if (session.isShopOpen()) drawShop(g);
+                    else drawLevelSummary(g);
+                }
                 default -> { }
             }
         } finally { g.dispose(); }
@@ -359,11 +383,43 @@ public final class GamePanel extends JPanel {
         g.setColor(RING_GOLD);
         centered(g, "Saldo total: " + summary.totalBalance() + " argola(s)", 308, OVERLAY_HINT);
         g.setColor(ACCENT);
-        centered(g, session.canAdvance() ? "R para rejogar     ENTER para avançar" : "R para rejogar",
+        centered(g, session.canAdvance() ? "R rejogar     B loja     ENTER avançar" : "R para rejogar     B para loja",
             365, OVERLAY_HINT);
         g.setColor(INK);
         centered(g, session.canAdvance() ? "Seu progresso acompanha você na próxima fase."
             : "Todas as fases disponíveis foram concluídas.", 410, OVERLAY_SUBTITLE);
+    }
+
+    private void drawShop(Graphics2D g) {
+        g.setColor(OVERLAY_SHADE);
+        g.fillRect(0, 65, WIDTH, 410);
+        g.setColor(ACCENT);
+        centered(g, levelLabel(), 112, OVERLAY_LABEL);
+        g.setColor(INK);
+        centered(g, "LOJA DE HABILIDADES", 164, OVERLAY_TITLE);
+        g.setColor(RING_GOLD);
+        centered(g, "Saldo: " + model.progress().balance() + " argola(s)", 203, OVERLAY_HINT);
+        g.setColor(INK);
+        centered(g, "Desbloqueios permanentes; movimentos nas próximas atualizações.", 233, CONTROLS_FONT);
+        int row = 0;
+        for (AbilityShop.Item item : AbilityShop.Item.values()) {
+            int y = 280 + row * 50;
+            g.setFont(OVERLAY_HINT);
+            g.setColor(INK);
+            g.drawString((row + 1) + "  " + item.label, 180, y);
+            g.setColor(RING_GOLD);
+            g.drawString(item.price + " argolas", 440, y);
+            boolean owned = model.progress().unlockedAbilities().contains(item.ability);
+            boolean affordable = model.progress().balance() >= item.price;
+            g.setColor(owned || affordable ? ACCENT : OBSTACLE_FILL);
+            g.drawString(owned ? "Adquirido" : affordable ? "Disponível"
+                : "Faltam " + (item.price - model.progress().balance()), 650, y);
+            row++;
+        }
+        g.setColor(INK);
+        centered(g, shopMessage, 380, OVERLAY_SUBTITLE);
+        g.setColor(ACCENT);
+        centered(g, "1 / 2 comprar     B / ESC voltar ao resumo", 420, OVERLAY_HINT);
     }
 
     private void centered(Graphics2D g, String text, int baseline, Font font) {

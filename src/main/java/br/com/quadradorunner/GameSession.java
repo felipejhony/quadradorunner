@@ -10,6 +10,7 @@ final class GameSession {
     private final List<Level> levels;
     private int index;
     private GameModel current;
+    private boolean shopOpen;
 
     GameSession(List<Level> levels, GameProgress progress) {
         this.levels = List.copyOf(levels);
@@ -30,8 +31,24 @@ final class GameSession {
     int levelNumber() { return index + 1; }
     int levelCount() { return levels.size(); }
 
+    boolean isShopOpen() { return shopOpen; }
+
+    boolean openShop() {
+        if (current.state != GameModel.State.WON) return false;
+        shopOpen = true;
+        return true;
+    }
+
+    void closeShop() { shopOpen = false; }
+
+    AbilityShop.Status buy(AbilityShop.Item item) {
+        Objects.requireNonNull(item, "item");
+        if (!shopOpen) return AbilityShop.Status.UNAVAILABLE;
+        return current.buy(item);
+    }
+
     boolean canAdvance() {
-        return current.state == GameModel.State.WON && index + 1 < levels.size();
+        return !shopOpen && current.state == GameModel.State.WON && index + 1 < levels.size();
     }
 
     boolean advance() {
@@ -40,5 +57,8 @@ final class GameSession {
         return true;
     }
 
-    void replay() { current.restart(); }
+    void replay() {
+        closeShop();
+        current.restart();
+    }
 }
