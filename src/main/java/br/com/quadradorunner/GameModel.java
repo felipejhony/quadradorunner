@@ -17,6 +17,8 @@ final class GameModel {
     static final double DASH_SPEED = 780;
     static final double DASH_DURATION = 0.2;
     static final double DASH_COOLDOWN = 1.2;
+    static final double GLIDE_GRAVITY = 300;
+    static final double GLIDE_MAX_FALL_SPEED = 120;
     private static final double MAX_DASH_DISPLACEMENT = 2;
     private static final double TIME_EPSILON = 1e-9;
     enum State { READY, RUNNING, PAUSED, LOST, WON }
@@ -26,6 +28,7 @@ final class GameModel {
     private int ringsCollectedThisAttempt;
     private double dashRemaining;
     private double dashCooldownRemaining;
+    private boolean glideHeld;
     record LevelSummary(String levelId, int newRings, int totalBalance) { }
     double powerRemaining;
     int jumpsUsed;
@@ -50,6 +53,15 @@ final class GameModel {
     boolean isDashing() { return dashRemaining > 0; }
     double dashTimeRemaining() { return dashRemaining; }
     double dashCooldownRemaining() { return dashCooldownRemaining; }
+
+    void setGlideHeld(boolean held) {
+        glideHeld = held && state == State.RUNNING
+            && progress.unlockedAbilities().contains(GameProgress.Ability.GLIDE);
+    }
+
+    boolean isGliding() {
+        return glideHeld && state == State.RUNNING && !grounded && velocityY >= 0;
+    }
 
     boolean dash() {
         if (state != State.RUNNING || !progress.unlockedAbilities().contains(GameProgress.Ability.DASH)
@@ -83,6 +95,7 @@ final class GameModel {
     }
 
     void pause() {
+        glideHeld = false;
         if (state == State.RUNNING) state = State.PAUSED;
     }
 
@@ -107,12 +120,13 @@ final class GameModel {
         ringsCollectedThisAttempt = 0;
         dashRemaining = 0;
         dashCooldownRemaining = 0;
+        glideHeld = false;
         java.util.Arrays.fill(collected, false);
         state = State.READY;
     }
 
     void togglePause() {
-        if (state == State.RUNNING) state = State.PAUSED;
+        if (state == State.RUNNING) pause();
         else if (state == State.PAUSED) state = State.RUNNING;
     }
 
@@ -131,7 +145,10 @@ final class GameModel {
             dashCooldownRemaining = countDown(dashCooldownRemaining, step);
             remaining -= step;
         }
-        if (state == State.LOST || state == State.WON) dashRemaining = 0;
+        if (state == State.LOST || state == State.WON) {
+            dashRemaining = 0;
+            glideHeld = false;
+        }
     }
 
     private double countDown(double value, double elapsed) {
@@ -142,7 +159,9 @@ final class GameModel {
     private void updateMovement(double dt, double speed) {
         powerRemaining = Math.max(0, powerRemaining - dt);
         x += speed * dt;
-        velocityY += GRAVITY * dt;
+        boolean gliding = isGliding();
+        velocityY += (gliding ? GLIDE_GRAVITY : GRAVITY) * dt;
+        if (gliding) velocityY = Math.min(velocityY, GLIDE_MAX_FALL_SPEED);
         y += velocityY * dt;
         if (y >= GROUND - SIZE) {
             y = GROUND - SIZE;

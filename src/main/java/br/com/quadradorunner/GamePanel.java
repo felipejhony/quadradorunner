@@ -32,6 +32,7 @@ public final class GamePanel extends JPanel {
     private static final Color RING_HIGHLIGHT = new Color(255, 246, 190);
     private static final Color DASH_COLOR = new Color(181, 157, 255);
     private static final Color DASH_TRAIL = new Color(181, 157, 255, 90);
+    private static final Color GLIDE_COLOR = new Color(134, 234, 255);
     private static final Stroke RING_STROKE = new BasicStroke(4);
     private static final Color FLAG_DARK = new Color(30, 45, 62);
     private static final Color PLAYER_GLOW = new Color(104, 202, 255, 100);
@@ -87,6 +88,7 @@ public final class GamePanel extends JPanel {
         bindKey("SPACE", GameInput.Key.SPACE, this::jump);
         bindKey("UP", GameInput.Key.UP, this::jump);
         bindKey("D", GameInput.Key.DASH, () -> model.dash());
+        bindKey("G", GameInput.Key.GLIDE, () -> model.setGlideHeld(true), () -> model.setGlideHeld(false));
         bindKey("R", GameInput.Key.RESTART, session::replay);
         bindKey("ENTER", GameInput.Key.ADVANCE, () -> {
             if (session.advance()) model = session.current();
@@ -131,6 +133,10 @@ public final class GamePanel extends JPanel {
     }
 
     private void bindKey(String stroke, GameInput.Key key, Runnable command) {
+        bindKey(stroke, key, command, () -> { });
+    }
+
+    private void bindKey(String stroke, GameInput.Key key, Runnable command, Runnable released) {
         bind("pressed " + stroke, () -> {
             if (input.press(key)) {
                 command.run();
@@ -138,7 +144,10 @@ public final class GamePanel extends JPanel {
                 repaint();
             }
         });
-        bind("released " + stroke, () -> input.release(key));
+        bind("released " + stroke, () -> {
+            input.release(key);
+            released.run();
+        });
     }
 
     private void bind(String stroke, Runnable action) {
@@ -307,6 +316,12 @@ public final class GamePanel extends JPanel {
             }
         }
         int px = (int) model.x;
+        if (model.isGliding()) {
+            g.setColor(GLIDE_COLOR);
+            g.fillArc(px - 12, (int) model.y - 26, SIZE + 24, 30, 0, 180);
+            g.drawLine(px - 12, (int) model.y - 11, px + SIZE / 2, (int) model.y);
+            g.drawLine(px + SIZE + 12, (int) model.y - 11, px + SIZE / 2, (int) model.y);
+        }
         if (model.isDashing()) {
             g.setColor(DASH_TRAIL);
             for (int i = 1; i <= 3; i++) {
@@ -319,7 +334,7 @@ public final class GamePanel extends JPanel {
         }
         g.setColor(SHADOW);
         g.fillOval(px - 4, GROUND - 7, SIZE + 8, 12);
-        g.setColor(model.isDashing() ? DASH_COLOR : ACCENT);
+        g.setColor(model.isDashing() ? DASH_COLOR : model.isGliding() ? GLIDE_COLOR : ACCENT);
         g.fillRoundRect(px, (int) model.y, SIZE, SIZE, 7, 7);
         g.setColor(PLAYER_FACE);
         g.fillRect(px + 22, (int) model.y + 9, 5, 6);
@@ -350,7 +365,7 @@ public final class GamePanel extends JPanel {
         g.setFont(TITLE_FONT);
         g.drawString("QUADRADO / RUNNER", 28, 36);
         g.setFont(CONTROLS_FONT);
-        g.drawString("ESPAÇO / ↑  pular     D  dash     P / ESC  pausar     R  reiniciar", 28, 511);
+        g.drawString("ESPAÇO / ↑  pular     D  dash     G  planar     P / ESC  pausar     R  reiniciar", 28, 511);
         g.drawString(muted ? "M  som: desligado" : "M  som: ligado", 785, 511);
         g.setColor(RING_GOLD);
         g.drawString("ARGOLAS COLETADAS  " + model.collectedRingCount() + "/" + model.level.rings.size(), 420, 32);
@@ -380,6 +395,11 @@ public final class GamePanel extends JPanel {
             dashStatus = "D  DASH pronto";
         }
         g.drawString(dashStatus, 28, 90);
+        g.setColor(GLIDE_COLOR);
+        String glideStatus = !model.progress().unlockedAbilities().contains(GameProgress.Ability.GLIDE)
+            ? "PLANAR bloqueado • loja: " + AbilityShop.Item.GLIDE.price + " argolas"
+            : model.isGliding() ? "G  PLANAR ativo" : "Segure G durante a queda para planar";
+        g.drawString(glideStatus, 520, 90);
     }
 
     private String readyMessage() {
@@ -439,7 +459,7 @@ public final class GamePanel extends JPanel {
         g.setColor(RING_GOLD);
         centered(g, "Saldo: " + model.progress().balance() + " argola(s)", 203, OVERLAY_HINT);
         g.setColor(INK);
-        centered(g, "Dash: tecla D após compra. Planar será ativado na próxima atualização.", 233, CONTROLS_FONT);
+        centered(g, "Após comprar: D para dash; segure G durante a queda para planar.", 233, CONTROLS_FONT);
         int row = 0;
         for (AbilityShop.Item item : AbilityShop.Item.values()) {
             int y = 280 + row * 50;

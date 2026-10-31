@@ -35,6 +35,7 @@ java -cp target/classes br.com.quadradorunner.Main
 |---|---|
 | Espaço ou seta para cima | Começar / pular |
 | D | Dash, após comprar a habilidade |
+| G (manter pressionada) | Planar durante a queda, após comprar a habilidade |
 | P ou Esc | Pausar / continuar |
 | R | Reiniciar / rejogar a fase atual |
 | Enter | Avançar após a vitória, quando houver próxima fase |
@@ -60,13 +61,21 @@ Após concluir uma fase, pressione **B** no resumo para abrir a loja. O catálog
 
 Cada compra é permanente, debita o preço uma única vez e é salva automaticamente. Compras repetidas ou sem saldo são recusadas, preservando o progresso; gastar não restaura argolas já coletadas. A loja também funciona depois da última fase disponível. Saia da loja para usar Enter e avançar quando houver uma próxima fase.
 
-Após comprar Dash, use **D** durante a corrida para ativá-lo. O movimento de Planar será implementado na etapa 09. O salto duplo dos cristais continua funcionando independentemente das compras.
+Após comprar Dash, use **D** durante a corrida para ativá-lo. Após comprar Planar, mantenha **G** pressionada durante a queda. O salto duplo dos cristais continua funcionando independentemente das compras.
 
 ## Dash
 
 O dash acelera horizontalmente para **780 px/s durante 0,2 segundo**, no chão ou no ar. A recarga é de **1,2 segundo a partir da ativação**. Solte e pressione D novamente para cada impulso; manter a tecla pressionada não ativa outro dash ao terminar a recarga. A habilidade só pode ser usada durante a corrida e depois da compra permanente na loja.
 
 O indicador mostra bloqueio, disponibilidade, ativação e recarga, e o jogador deixa um rastro roxo enquanto acelera. O dash mantém a gravidade e os limites de salto: obstáculos continuam causando derrota. A colisão e a coleta são verificadas em subpassos com deslocamento horizontal de até 2 px durante o impulso. A pausa e a perda de foco congelam seus temporizadores; reiniciar a fase ou carregar outra começa com dash pronto, preservando a compra. Apenas o desbloqueio é salvo, não a duração ou a recarga de uma tentativa.
+
+## Planar
+
+Depois de comprar Planar na loja por **6 argolas**, mantenha **G** pressionada durante a corrida. A habilidade atua apenas no ar e na descida: a gravidade cai para **300 px/s²** e a velocidade de queda fica limitada a **120 px/s**. É possível segurar G antes do ponto mais alto do salto para começar a planar automaticamente na descida; a subida mantém a física normal.
+
+Soltar G restaura a gravidade normal a partir da velocidade atual. A habilidade continua descendo até o chão, sem conceder saltos extras ou invulnerabilidade, e pode ser combinada com dash e com o salto duplo temporário. Pousar encerra o efeito; se G continuar pressionada, um novo salto volta a planar na descida. Pausar, perder foco, reiniciar, concluir a fase ou morrer cancela o comando. Depois de uma pausa, solte e pressione G novamente para reativar.
+
+O indicador mostra bloqueio, instrução de uso ou estado ativo. Durante o efeito, o jogador aparece em azul-claro com uma pequena asa acima dele. A compra permanece no save, mas o comando pressionado e a velocidade da tentativa não são persistidos.
 
 ## Final de fase
 
