@@ -26,6 +26,10 @@ final class ProgressAutosave implements AutoCloseable {
     }
 
     // Called by the EDT, like close(). A null failure means the save completed successfully.
+    void reset(Consumer<IOException> completed) {
+        save(new GameProgress(), completed);
+    }
+
     void save(GameProgress progress, Consumer<IOException> completed) {
         Objects.requireNonNull(progress, "progress");
         Objects.requireNonNull(completed, "completed");

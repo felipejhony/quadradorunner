@@ -29,7 +29,7 @@ public final class Main {
             GamePanel panel = new GamePanel(session, GameAudio::new,
                 snapshot -> autosave.save(snapshot, failure -> {
                     if (failure != null) SwingUtilities.invokeLater(() -> showSaveFailure(window, failure));
-                }));
+                }), requestedPanel -> resetGame(window, requestedPanel, autosave));
             window.setContentPane(panel);
             window.addWindowFocusListener(new WindowAdapter() {
                 @Override public void windowLostFocus(WindowEvent event) {
@@ -41,7 +41,7 @@ public final class Main {
             });
             window.addWindowListener(new WindowAdapter() {
                 @Override public void windowClosing(WindowEvent event) {
-                    if (!window.isEnabled()) return;
+                    if (!window.isEnabled() || panel.isResetting()) return;
                     window.setEnabled(false);
                     panel.pauseForFocusLoss();
                     autosave.save(session.current().progress(), failure -> SwingUtilities.invokeLater(() -> {
@@ -67,5 +67,16 @@ public final class Main {
             "Não foi possível salvar o progresso. Ele continua em memória.\n"
                 + "Tente fechar novamente para repetir a gravação.\n" + failure.getMessage(),
             "Erro ao salvar", JOptionPane.ERROR_MESSAGE);
+    }
+
+    private static void resetGame(JFrame window, GamePanel panel, ProgressAutosave autosave) {
+        if (panel.isResetting() || !panel.confirmReset()) return;
+        panel.beginReset();
+        autosave.reset(failure -> SwingUtilities.invokeLater(() -> {
+            panel.finishReset(failure == null);
+            if (failure != null) JOptionPane.showMessageDialog(window,
+                "Não foi possível resetar o save. O progresso anterior foi mantido.\n" + failure.getMessage(),
+                "Erro ao resetar", JOptionPane.ERROR_MESSAGE);
+        }));
     }
 }

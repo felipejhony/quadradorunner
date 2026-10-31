@@ -31,6 +31,20 @@ final class GameSession {
     int levelNumber() { return index + 1; }
     int levelCount() { return levels.size(); }
 
+    boolean isLevelUnlocked(int target) {
+        if (target < 0 || target >= levels.size()) return false;
+        for (int i = 0; i < target; i++) {
+            if (!current.progress().completedLevelIds().contains(levels.get(i).id)) return false;
+        }
+        return true;
+    }
+
+    void reset() {
+        index = 0;
+        shopOpen = false;
+        current = new GameModel(levels.get(0), new GameProgress());
+    }
+
     boolean isShopOpen() { return shopOpen; }
 
     boolean openShop() {
@@ -48,7 +62,7 @@ final class GameSession {
     }
 
     boolean canAdvance() {
-        return !shopOpen && current.state == GameModel.State.WON && index + 1 < levels.size();
+        return !shopOpen && current.state == GameModel.State.WON && isLevelUnlocked(index + 1);
     }
 
     boolean advance() {

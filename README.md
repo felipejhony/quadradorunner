@@ -57,6 +57,8 @@ O HUD mostra o saldo e a contagem de argolas já coletadas na fase (por exemplo,
 
 ## Loja entre fases
 
+O botão **Resetar todo o progresso**, disponível nos menus e na pausa, pede confirmação antes de zerar saldo, argolas coletadas, habilidades compradas e fases concluídas. Os cristais e a tentativa são restaurados, e apenas a primeira fase fica liberada. O reset aguarda a gravação do save; se ela falhar, o progresso anterior continua na sessão. **R** continua reiniciando somente a tentativa, preservando o save.
+
 Após concluir uma fase, pressione **B** no resumo para abrir a loja. O catálogo oferece **Dash por 4 argolas** (tecla **1**) e **Planar por 6 argolas** (tecla **2**). A tela mostra preço, saldo e se o item está disponível, já adquirido ou exige mais argolas. **B** ou **Esc** retorna ao resumo; **R** também permite rejogar a fase atual, mantendo as compras.
 
 Cada compra é permanente, debita o preço uma única vez e é salva automaticamente. Compras repetidas ou sem saldo são recusadas, preservando o progresso; gastar não restaura argolas já coletadas. A loja também funciona depois da última fase disponível. Saia da loja para usar Enter e avançar quando houver uma próxima fase.

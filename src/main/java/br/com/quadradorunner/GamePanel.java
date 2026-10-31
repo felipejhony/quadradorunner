@@ -52,6 +52,8 @@ public final class GamePanel extends JPanel {
     private final GameSession session;
     private final Supplier<GameAudio> audioFactory;
     private final Consumer<GameProgress> progressChanged;
+    private final JButton resetButton = new JButton("Resetar todo o progresso");
+    private boolean resetting;
     private GameAudio audio;
     private boolean muted;
     private boolean windowFocused = true;
@@ -79,12 +81,22 @@ public final class GamePanel extends JPanel {
     }
 
     GamePanel(GameSession session, Supplier<GameAudio> audioFactory, Consumer<GameProgress> progressChanged) {
+        this(session, audioFactory, progressChanged, GamePanel::resetLocally);
+    }
+
+    GamePanel(GameSession session, Supplier<GameAudio> audioFactory, Consumer<GameProgress> progressChanged,
+              Consumer<GamePanel> resetRequested) {
         this.session = session;
         this.model = session.current();
         this.audioFactory = audioFactory;
         this.progressChanged = progressChanged;
         setPreferredSize(new Dimension(WIDTH, HEIGHT));
         setBackground(new Color(13, 22, 39));
+        setLayout(null);
+        resetButton.setBounds(670, 478, 260, 26);
+        resetButton.setFocusable(false);
+        resetButton.addActionListener(event -> resetRequested.accept(this));
+        add(resetButton);
         bindKey("SPACE", GameInput.Key.SPACE, this::jump);
         bindKey("UP", GameInput.Key.UP, this::jump);
         bindKey("D", GameInput.Key.DASH, () -> model.dash());
@@ -107,6 +119,52 @@ public final class GamePanel extends JPanel {
         bindKey("M", GameInput.Key.MUTE, () -> muted = !muted);
         timer = new Timer(16, event -> tick());
         timer.setCoalesce(true);
+        refreshResetButton();
+    }
+
+    boolean confirmReset() {
+        return JOptionPane.showOptionDialog(this,
+            "Resetar todo o jogo?\nSaldo, argolas, habilidades e fases concluídas serão zerados.\n"
+                + "Os cristais serão restaurados e somente a primeira fase ficará liberada.",
+            "Confirmar reset completo", JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE,
+            null, new String[]{"Cancelar", "Resetar jogo"}, "Cancelar") == 1;
+    }
+
+    private void resetLocally() {
+        if (confirmReset()) {
+            beginReset();
+            finishReset(true);
+        }
+    }
+
+    boolean isResetting() { return resetting; }
+
+    void beginReset() {
+        resetting = true;
+        input.clear();
+        model.pause();
+        timer.stop();
+        refreshResetButton();
+        repaint();
+    }
+
+    void finishReset(boolean success) {
+        if (!resetting) return;
+        if (success) {
+            session.reset();
+            model = session.current();
+            shopMessage = "";
+        }
+        resetting = false;
+        input.clear();
+        synchronizeTimer();
+        repaint();
+    }
+
+    private void refreshResetButton() {
+        resetButton.setVisible(resetting || model.state != GameModel.State.RUNNING);
+        resetButton.setEnabled(!resetting);
+        resetButton.setText(resetting ? "Resetando progresso..." : "Resetar todo o progresso");
     }
 
     private void jump() {
@@ -138,6 +196,7 @@ public final class GamePanel extends JPanel {
 
     private void bindKey(String stroke, GameInput.Key key, Runnable command, Runnable released) {
         bind("pressed " + stroke, () -> {
+            if (resetting) return;
             if (input.press(key)) {
                 command.run();
                 synchronizeTimer();
@@ -178,8 +237,9 @@ public final class GamePanel extends JPanel {
     }
 
     private void synchronizeTimer() {
+        refreshResetButton();
         configureAudio();
-        boolean shouldRun = isDisplayable() && model.state == GameModel.State.RUNNING;
+        boolean shouldRun = !resetting && isDisplayable() && model.state == GameModel.State.RUNNING;
         if (shouldRun && timer.isRunning()) return;
         loop.reset();
         lastTick = System.nanoTime();
@@ -211,10 +271,12 @@ public final class GamePanel extends JPanel {
     }
 
     void updateGame(double dt) {
+        if (resetting) return;
         GameModel.State previous = model.state;
         int collectedBefore = collectedCount();
         GameProgress previousProgress = model.progress();
         model.update(dt);
+        refreshResetButton();
         if (collectedCount() > collectedBefore
                 || model.progress().collectedRings().size() > previousProgress.collectedRings().size()) {
             play(GameAudio.Effect.COLLECT);
