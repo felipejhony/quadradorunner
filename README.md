@@ -4,7 +4,7 @@ Este jogo foi criado com inteligência artificial (IA) para fins educacionais, c
 
 Jogo 2D de corrida lateral feito com **Java 17, Maven, Swing e Java2D**, sem dependências externas em tempo de execução. Todos os elementos são desenhados por código.
 
-O quadrado corre automaticamente da esquerda para a direita. Pule os 17 obstáculos (retângulos, triângulos, círculos e losangos) e alcance a bandeira para ver a mensagem de sucesso. As colisões acompanham o formato de cada obstáculo. A interseção das hitboxes encerra a tentativa; tangência exata não é considerada colisão. O jogador usa uma caixa retangular, inclusive nos cantos arredondados do desenho. Cristais também usam uma caixa retangular de coleta, maior que o losango desenhado.
+O quadrado corre automaticamente da esquerda para a direita. A campanha tem três fases: a pista original com 17 obstáculos, uma passagem que exige dash e uma corrente aérea que exige planar. Alcance a bandeira de cada fase para ver o resumo e preparar o próximo desafio. As colisões acompanham o formato dos obstáculos (retângulos, triângulos, círculos e losangos). A interseção das hitboxes encerra a tentativa; tangência exata não é considerada colisão. O jogador usa uma caixa retangular, inclusive nos cantos arredondados do desenho. Cristais também usam uma caixa retangular de coleta, maior que o losango desenhado.
 
 ## Requisitos
 
@@ -45,11 +45,11 @@ java -cp target/classes br.com.quadradorunner.Main
 
 Solte todas as teclas de pulo antes de pressionar novamente para cada salto. Comandos ignoram a repetição automática do teclado. Ao perder o foco da janela, a partida pausa e limpa as teclas pressionadas; pressione P ou Esc para continuar. O pulo está um pouco mais alto para facilitar a corrida. Colete os cristais azuis com o número **2** para liberar um segundo salto no ar por **10 segundos**. Cada pouso renova os dois saltos enquanto o efeito estiver ativo. Um novo cristal renova a duração para 10 segundos; a pausa congela esse tempo. O indicador superior mostra a duração restante e os saltos disponíveis. Reiniciar restaura os cristais e remove o efeito.
 
-A câmera acompanha o jogador e o indicador superior mostra o progresso. A fase tem o dobro do comprimento original e pode ser concluída mesmo sem coletar os power-ups.
+A câmera acompanha o jogador e o indicador superior mostra o progresso na fase atual. A primeira fase pode ser concluída sem coletar cristais; as seguintes exigem comprar e usar a habilidade indicada.
 
 ## Argolas e progresso salvo
 
-A pista possui 12 argolas douradas. Encoste no disco de uma argola para coletá-la e ganhar 1 no saldo permanente. Cada argola é identificada pela fase e por um ID fixo: depois de coletada, não reaparece ao morrer, reiniciar ou reabrir o jogo. Os cristais azuis continuam sendo power-ups temporários independentes das argolas.
+A primeira fase possui 12 argolas douradas; cada uma das duas seguintes possui 6. Encoste no disco de uma argola para coletá-la e ganhar 1 no saldo permanente. Cada argola é identificada pela fase e por um ID fixo: depois de coletada, não reaparece ao morrer, reiniciar ou reabrir o jogo. Os cristais azuis continuam sendo power-ups temporários independentes das argolas.
 
 O aplicativo carrega e salva automaticamente um slot em `${user.home}/.quadrado-runner/progress.properties`. As gravações acontecem fora da thread da interface, usando o formato versionado e a substituição atômica existentes. Fechar normalmente aguarda a gravação final; evite encerrar o processo à força enquanto salva. Se houver falha ao salvar, o jogo mantém o progresso em memória e permite repetir a tentativa ao fechar novamente. Saves inválidos ou de versão incompatível são preservados e informados ao carregar, sem começar silenciosamente do zero.
 
@@ -83,7 +83,19 @@ O indicador mostra bloqueio, instrução de uso ou estado ativo. Durante o efeit
 
 Ao chegar à bandeira, o jogo mostra as **argolas novas coletadas naquela tentativa** e o **saldo total**. A conclusão é registrada no mesmo save, sem conceder recompensa adicional: as argolas já foram creditadas na coleta.
 
-Use **R** para rejogar a fase atual. O contador da tentativa volta a zero, mantendo o saldo e as argolas permanentemente coletadas. Quando houver uma próxima fase na sequência, **Enter** avança para ela com o mesmo progresso, iniciando em estado de espera. A distribuição atual contém uma única fase; nesse caso, a tela informa que todas as fases disponíveis foram concluídas e oferece o replay. Novas fases e a seleção livre serão adicionadas nas etapas correspondentes do plano.
+Use **R** para rejogar a fase atual. O contador da tentativa volta a zero, mantendo o saldo e as argolas permanentemente coletadas. **Enter** avança para a próxima fase quando os requisitos estiverem atendidos, iniciando em estado de espera. Se faltar uma habilidade, o resumo informa qual comprar na loja. Depois da terceira fase, a tela informa que a campanha foi concluída e oferece o replay da fase atual. A seleção livre será adicionada na etapa 11 do plano.
+
+## Fases e desbloqueios
+
+| Fase | Comprimento | Acesso e desafio |
+|---|---:|---|
+| 1 — A pista | 8.400 px | Liberada desde o início; saltar os obstáculos originais. |
+| 2 — Passagem veloz | 2.000 px | Concluir a fase 1 e comprar Dash; atravessar a barreira roxa com D ativo. |
+| 3 — Corrente aérea | 1.800 px | Concluir as fases anteriores e comprar Planar; entrar na corrente azul já descendo e manter G. |
+
+As fases abrem em ordem e mantêm saldo, compras e argolas já coletadas. Na fase 2, ative D pouco antes da barreira para cruzá-la durante o impulso. Na fase 3, pule antes da corrente para alcançá-la na descida; entrar subindo, caminhar ou usar somente dash causa derrota. As mensagens de início e derrota explicam o movimento necessário.
+
+A fase 2 tem seis argolas acessíveis usando apenas Dash, suficientes para comprar Planar mesmo se você chegar com saldo zero. O jogo não concede outra recompensa por concluir ou rejogar uma fase. Depois do reset completo, saldo e compras são zerados, todas as argolas voltam e somente a fase 1 fica liberada. Fora do reset confirmado, morte e replay preservam o progresso.
 
 ## Organização
 
@@ -97,6 +109,7 @@ Use **R** para rejogar a fase atual. O contador da tentativa volta a zero, mante
 - `GameProgressStore.java`: persistência local versionada com gravação atômica.
 - `ProgressAutosave.java`: fila de gravação fora da EDT.
 - `Level.java`: geometria e configuração da fase.
+- `AbilityGate.java`: barreiras e correntes que exigem um movimento ativo.
 - `GameInput.java`: transições das teclas e bloqueio de repetição.
 - `FixedStepLoop.java`: acumulador de tempo com passo fixo de 1/120 s.
 - `GameAudio.java`: coordena áudio fora da EDT e trata indisponibilidade do dispositivo.
@@ -106,7 +119,7 @@ Use **R** para rejogar a fase atual. O contador da tentativa volta a zero, mante
 
 O timer Swing solicita atualizações aproximadamente a cada 16 ms apenas durante a corrida. Cada callback executa até 30 passos fixos (250 ms de simulação); atrasos maiores descartam o excedente para evitar bloquear a EDT. Assim, os 10 segundos do cristal são medidos em tempo de simulação e podem durar mais em tempo real sob travamentos prolongados. Pausar e retomar descarta o resíduo do acumulador.
 
-O mapa tem 8.400 pixels e 17 obstáculos. A suíte simula uma vitória sem cristais, saltando quando a distância até o próximo obstáculo fica abaixo de 55 pixels. A colisão usa as formas Java2D dos obstáculos e é verificada a cada passo; não é uma detecção contínua para velocidades arbitrárias.
+O mapa original tem 8.400 pixels e 17 obstáculos. A suíte simula sua conclusão sem cristais e percorre a campanha inteira com compras e habilidades, incluindo o cenário de saldo zero na chegada à fase 2. Cada fase possui comprimento próprio, utilizado pela bandeira, câmera, HUD e regra de vitória. A colisão usa as formas Java2D dos obstáculos e é verificada a cada passo; não é uma detecção contínua para velocidades arbitrárias.
 
 A renderização reutiliza fontes e cores, desenha obstáculos com uma transformação de câmera e ignora os que estão fora da tela. Todos os acessos ao modelo na aplicação acontecem na EDT; os testes de regras não precisam criar componentes gráficos.
 

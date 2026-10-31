@@ -29,6 +29,7 @@ final class GameModel {
     private double dashRemaining;
     private double dashCooldownRemaining;
     private boolean glideHeld;
+    private GameProgress.Ability blockedGate;
     record LevelSummary(String levelId, int newRings, int totalBalance) { }
     double powerRemaining;
     int jumpsUsed;
@@ -49,6 +50,7 @@ final class GameModel {
     }
 
     GameProgress progress() { return progress; }
+    GameProgress.Ability blockedGate() { return blockedGate; }
 
     boolean isDashing() { return dashRemaining > 0; }
     double dashTimeRemaining() { return dashRemaining; }
@@ -122,6 +124,7 @@ final class GameModel {
         dashCooldownRemaining = 0;
         glideHeld = false;
         java.util.Arrays.fill(collected, false);
+        blockedGate = null;
         state = State.READY;
     }
 
@@ -177,6 +180,19 @@ final class GameModel {
             }
         }
         if (state == State.RUNNING) {
+            for (AbilityGate gate : level.gates) {
+                boolean active = switch (gate.ability()) {
+                    case DASH -> isDashing();
+                    case GLIDE -> isGliding();
+                };
+                if (gate.intersects(player) && !active) {
+                    blockedGate = gate.ability();
+                    state = State.LOST;
+                    break;
+                }
+            }
+        }
+        if (state == State.RUNNING) {
             collectRings(player);
             for (int i = 0; i < level.powerUps.size(); i++) {
                 if (!collected[i] && player.intersects(level.powerUps.get(i))) {
@@ -185,7 +201,7 @@ final class GameModel {
                 }
             }
         }
-        if (state == State.RUNNING && x >= FINISH) {
+        if (state == State.RUNNING && x >= level.finish) {
             state = State.WON;
             if (!progress.completedLevelIds().contains(level.id)) {
                 var completed = new HashSet<>(progress.completedLevelIds());

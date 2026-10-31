@@ -6,7 +6,6 @@ import javax.swing.JOptionPane;
 import java.io.IOException;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.util.List;
 
 public final class Main {
     private Main() { }
@@ -24,7 +23,7 @@ public final class Main {
         SwingUtilities.invokeLater(() -> {
             JFrame window = new JFrame("Quadrado Runner • Java2D");
             window.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
-            GameSession session = new GameSession(List.of(Level.standard()), progress);
+            GameSession session = new GameSession(Level.campaign(), progress);
             ProgressAutosave autosave = new ProgressAutosave(store);
             GamePanel panel = new GamePanel(session, GameAudio::new,
                 snapshot -> autosave.save(snapshot, failure -> {

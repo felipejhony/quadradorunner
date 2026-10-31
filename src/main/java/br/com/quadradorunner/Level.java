@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.EnumSet;
 
 /** Static world geometry; coordinates are in world pixels. */
 final class Level {
@@ -13,17 +14,29 @@ final class Level {
     static final int FINISH = 8400;
     static final String STANDARD_ID = "level-01";
     final String id;
+    final String title;
+    final int finish;
     final List<Shape> obstacles;
     final List<Rectangle2D.Double> powerUps;
     final List<Ring> rings;
+    final List<AbilityGate> gates;
+    final Set<GameProgress.Ability> requiredAbilities;
 
     Level(List<Shape> obstacles, List<Rectangle2D.Double> powerUps) {
         this(STANDARD_ID, obstacles, powerUps, List.of());
     }
 
     Level(String id, List<Shape> obstacles, List<Rectangle2D.Double> powerUps, List<Ring> rings) {
+        this(id, id, FINISH, obstacles, powerUps, rings, List.of());
+    }
+
+    Level(String id, String title, int finish, List<Shape> obstacles,
+          List<Rectangle2D.Double> powerUps, List<Ring> rings, List<AbilityGate> gates) {
         this.id = Objects.requireNonNull(id, "id");
         if (id.isBlank()) throw new IllegalArgumentException("Level ID cannot be blank");
+        this.title = Objects.requireNonNull(title, "title");
+        if (title.isBlank() || finish <= GameModel.START_X) throw new IllegalArgumentException("Invalid level layout");
+        this.finish = finish;
         this.obstacles = List.copyOf(obstacles);
         this.powerUps = List.copyOf(powerUps);
         this.rings = List.copyOf(rings);
@@ -31,6 +44,16 @@ final class Level {
         for (Ring ring : this.rings) {
             if (!ringIds.add(ring.id())) throw new IllegalArgumentException("Duplicate ring ID: " + ring.id());
         }
+        this.gates = List.copyOf(gates);
+        Set<String> gateIds = new HashSet<>();
+        Set<GameProgress.Ability> required = EnumSet.noneOf(GameProgress.Ability.class);
+        for (AbilityGate gate : this.gates) {
+            if (!gateIds.add(gate.id()) || (long) gate.x() + gate.width() >= finish) {
+                throw new IllegalArgumentException("Duplicate gate ID or gate beyond finish");
+            }
+            required.add(gate.ability());
+        }
+        requiredAbilities = Set.copyOf(required);
     }
 
     static Level standard() {
@@ -56,7 +79,27 @@ final class Level {
             new Ring("ring-07", 3070, GROUND - 100), new Ring("ring-08", 3500, GROUND - 36),
             new Ring("ring-09", 4450, GROUND - 120), new Ring("ring-10", 4850, GROUND - 36),
             new Ring("ring-11", 5800, GROUND - 120), new Ring("ring-12", 8150, GROUND - 36));
-        return new Level(STANDARD_ID, obstacles, powerUps, rings);
+        return new Level(STANDARD_ID, "A pista", FINISH, obstacles, powerUps, rings, List.of());
+    }
+
+    static List<Level> campaign() {
+        return List.of(standard(), dashRoute(), glideRoute());
+    }
+
+    static Level dashRoute() {
+        return new Level("level-02", "Passagem veloz", 2000, List.of(), List.of(), List.of(
+            new Ring("ring-01", 350, GROUND - 36), new Ring("ring-02", 500, GROUND - 36),
+            new Ring("ring-03", 850, GROUND - 36), new Ring("ring-04", 1100, GROUND - 36),
+            new Ring("ring-05", 1400, GROUND - 36), new Ring("ring-06", 1750, GROUND - 36)),
+            List.of(new AbilityGate("dash-gate", 650, 28, GameProgress.Ability.DASH)));
+    }
+
+    static Level glideRoute() {
+        return new Level("level-03", "Corrente aérea", 1800, List.of(), List.of(), List.of(
+            new Ring("ring-01", 350, GROUND - 36), new Ring("ring-02", 550, GROUND - 130),
+            new Ring("ring-03", 720, GROUND - 120), new Ring("ring-04", 1050, GROUND - 36),
+            new Ring("ring-05", 1300, GROUND - 36), new Ring("ring-06", 1650, GROUND - 36)),
+            List.of(new AbilityGate("glide-current", 650, 40, GameProgress.Ability.GLIDE)));
     }
 
     static Rectangle2D.Double obstacle(int x, int width, int height) {

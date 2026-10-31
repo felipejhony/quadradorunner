@@ -6,6 +6,8 @@ import java.awt.geom.*;
 import javax.swing.*;
 import java.util.function.Supplier;
 import java.util.function.Consumer;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 import static br.com.quadradorunner.Level.*;
 import static br.com.quadradorunner.GameModel.SIZE;
 
@@ -296,7 +298,7 @@ public final class GamePanel extends JPanel {
 
     @Override protected void paintComponent(Graphics graphics) {
         super.paintComponent(graphics);
-        camera = Math.max(0, Math.min(model.x - CAMERA_ANCHOR, FINISH - WIDTH + FINISH_MARGIN));
+        camera = Math.max(0, Math.min(model.x - CAMERA_ANCHOR, model.level.finish - WIDTH + FINISH_MARGIN));
         Graphics2D g = (Graphics2D) graphics.create();
         try {
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -304,9 +306,15 @@ public final class GamePanel extends JPanel {
             drawWorld(g);
             drawHud(g);
             switch (model.state) {
-                case READY -> overlay(g, "QUADRADO RUNNER", readyMessage(), "ESPAÇO ou ↑ para começar e pular");
+                case READY -> {
+                    overlay(g, "QUADRADO RUNNER", readyMessage(), "ESPAÇO ou ↑ para começar e pular");
+                    if (!model.level.gates.isEmpty()) {
+                        g.setColor(INK);
+                        centered(g, routeInstruction(), 390, CONTROLS_FONT);
+                    }
+                }
                 case PAUSED -> overlay(g, "PAUSA", "Respire. A pista espera por você.", "P ou ESC para continuar");
-                case LOST -> overlay(g, "QUASE LÁ!", "Você bateu em um obstáculo. Tente pular um pouco antes.", "R para tentar novamente");
+                case LOST -> overlay(g, "QUASE LÁ!", lossMessage(), "R para tentar novamente");
                 case WON -> {
                     if (session.isShopOpen()) drawShop(g);
                     else drawLevelSummary(g);
@@ -345,6 +353,7 @@ public final class GamePanel extends JPanel {
         }
         AffineTransform original = g.getTransform();
         g.translate(-camera, 0);
+        drawAbilityGates(g);
         for (Shape obstacle : model.level.obstacles) {
             Rectangle2D bounds = obstacle.getBounds2D();
             if (bounds.getMaxX() < camera || bounds.getMinX() > camera + WIDTH) continue;
@@ -368,7 +377,7 @@ public final class GamePanel extends JPanel {
             g.drawString("2", cx - 4, cy + 5);
         }
         drawRings(g);
-        int fx = FINISH;
+        int fx = model.level.finish;
         g.setColor(INK);
         g.fillRect(fx, GROUND - 140, 4, 140);
         for (int row = 0; row < 4; row++) {
@@ -422,6 +431,22 @@ public final class GamePanel extends JPanel {
         g.setStroke(original);
     }
 
+    private void drawAbilityGates(Graphics2D g) {
+        for (AbilityGate gate : model.level.gates) {
+            if (gate.x() + gate.width() < camera || gate.x() > camera + WIDTH + 100) continue;
+            boolean dash = gate.ability() == GameProgress.Ability.DASH;
+            g.setColor(dash ? DASH_TRAIL : CRYSTAL_GLOW);
+            g.fillRect(gate.x(), 0, gate.width(), GROUND);
+            g.setColor(dash ? DASH_COLOR : GLIDE_COLOR);
+            g.drawLine(gate.x(), 0, gate.x(), GROUND);
+            g.drawLine(gate.x() + gate.width(), 0, gate.x() + gate.width(), GROUND);
+            g.setFont(POWER_FONT);
+            g.drawString(dash ? "BARREIRA DASH" : "CORRENTE AÉREA", gate.x() - 65, 155);
+            g.setFont(CONTROLS_FONT);
+            g.drawString(dash ? "D durante a travessia" : "G durante a descida", gate.x() - 65, 175);
+        }
+    }
+
     private void drawHud(Graphics2D g) {
         g.setColor(INK);
         g.setFont(TITLE_FONT);
@@ -433,7 +458,7 @@ public final class GamePanel extends JPanel {
         g.drawString("ARGOLAS COLETADAS  " + model.collectedRingCount() + "/" + model.level.rings.size(), 420, 32);
         g.drawString("SALDO  " + model.progress().balance(), 420, 55);
         g.setColor(INK);
-        double progress = Math.max(0, Math.min(1, (model.x - GameModel.START_X) / (FINISH - GameModel.START_X)));
+        double progress = Math.max(0, Math.min(1, (model.x - GameModel.START_X) / (model.level.finish - GameModel.START_X)));
         g.drawString("CHEGADA  " + (int) (progress * 100) + "%", 720, 32);
         g.setColor(PROGRESS_TRACK);
         g.fillRoundRect(720, 43, 210, 7, 7, 7);
@@ -473,7 +498,24 @@ public final class GamePanel extends JPanel {
         if (collected > 0) {
             return "Restam " + (total - collected) + " argola(s) nesta fase. As coletadas permanecem salvas.";
         }
+        if (!model.level.gates.isEmpty()) return "Prepare-se para o desafio de " + model.level.title + ".";
         return "Pegue os cristais azuis: salto duplo por 10 segundos!";
+    }
+
+    private String routeInstruction() {
+        return model.level.requiredAbilities.contains(GameProgress.Ability.DASH)
+            ? "Ative D pouco antes da barreira roxa e atravesse durante o impulso."
+            : "Pule antes da corrente azul e entre nela já descendo, mantendo G pressionada.";
+    }
+
+    private String lossMessage() {
+        if (model.blockedGate() == GameProgress.Ability.DASH) {
+            return "Atravesse a barreira roxa enquanto o dash estiver ativo.";
+        }
+        if (model.blockedGate() == GameProgress.Ability.GLIDE) {
+            return "Entre na corrente já descendo e segure G para planar.";
+        }
+        return "Você bateu em um obstáculo. Tente pular um pouco antes.";
     }
 
     private void overlay(Graphics2D g, String title, String subtitle, String hint) {
@@ -489,7 +531,7 @@ public final class GamePanel extends JPanel {
     }
 
     private String levelLabel() {
-        return "FASE " + session.levelNumber() + " / " + session.levelCount();
+        return "FASE " + session.levelNumber() + " / " + session.levelCount() + " • " + model.level.title;
     }
 
     private void drawLevelSummary(Graphics2D g) {
@@ -507,8 +549,20 @@ public final class GamePanel extends JPanel {
         centered(g, session.canAdvance() ? "R rejogar     B loja     ENTER avançar" : "R para rejogar     B para loja",
             365, OVERLAY_HINT);
         g.setColor(INK);
-        centered(g, session.canAdvance() ? "Seu progresso acompanha você na próxima fase."
-            : "Todas as fases disponíveis foram concluídas.", 410, OVERLAY_SUBTITLE);
+        centered(g, nextLevelMessage(), 410, OVERLAY_SUBTITLE);
+    }
+
+    private String nextLevelMessage() {
+        if (!session.hasNextLevel()) return "Todas as fases disponíveis foram concluídas.";
+        var missing = session.missingNextAbilities();
+        if (!missing.isEmpty()) {
+            String required = Arrays.stream(AbilityShop.Item.values())
+                .filter(item -> missing.contains(item.ability))
+                .map(item -> item.label + " (" + item.price + " argolas)")
+                .collect(Collectors.joining(" e "));
+            return "Próxima fase exige " + required + ". Compre na loja com B.";
+        }
+        return "Seu progresso acompanha você na próxima fase.";
     }
 
     private void drawShop(Graphics2D g) {
