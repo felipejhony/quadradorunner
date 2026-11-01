@@ -18,6 +18,8 @@ final class GameModel {
     static final double SPEED = 260;
     private static final double GRAVITY = 1700;
     private static final double JUMP_SPEED = -710;
+    static final double OBSTACLE_LIFT = 56;
+    static final double OBSTACLE_OSCILLATION_SPEED = 0.7;
     static final double POWER_DURATION = 10;
     static final double DASH_SPEED = 780;
     static final double DASH_DURATION = 0.2;
@@ -241,7 +243,8 @@ final class GameModel {
 
     Shape obstacleShape(Shape obstacle) {
         int index = level.obstacles.indexOf(obstacle);
-        double offset = index % 3 == 0 ? -16 * (1 - Math.cos(worldTime * 2)) : 0;
+        double offset = index % 3 == 0
+            ? -OBSTACLE_LIFT * (1 - Math.cos(worldTime * OBSTACLE_OSCILLATION_SPEED)) / 2 : 0;
         return java.awt.geom.AffineTransform.getTranslateInstance(0, offset).createTransformedShape(obstacle);
     }
 

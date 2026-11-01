@@ -24,6 +24,7 @@ final class AudioSamples {
                 addTone(samples, chord * 4 + beat * 0.5, 0.48, note, note, 0.035);
             }
         }
+        if (music == GameAudio.Music.SPACE) addDrums(samples);
         return pcm(samples);
     }
 
@@ -61,6 +62,44 @@ final class AudioSamples {
             case DENIED -> addTone(samples, 0, duration, 48, 45, 0.09);
         }
         return pcm(samples);
+    }
+
+    private static void addDrums(double[] samples) {
+        java.util.Random noise = new java.util.Random(73);
+        // 120 BPM: kick on beats 1/3, snare on 2/4, hi-hat on eighth notes.
+        for (int beat = 0; beat < MUSIC_SECONDS * 2; beat++) {
+            double start = beat * 0.5;
+            addDrum(samples, start, beat % 2 == 0 ? 0.24 : 0.16, beat % 2 == 0, false, noise);
+            addDrum(samples, start, 0.06, false, true, noise);
+            addDrum(samples, start + 0.25, 0.06, false, true, noise);
+        }
+    }
+
+    private static void addDrum(double[] samples, double start, double duration,
+                                boolean kick, boolean hiHat, java.util.Random noise) {
+        int offset = (int) (start * SAMPLE_RATE);
+        int length = (int) (duration * SAMPLE_RATE);
+        double phase = 0;
+        double previousNoise = 0;
+        for (int i = 0; i < length && offset + i < samples.length; i++) {
+            double time = i / (double) SAMPLE_RATE;
+            double fraction = i / (double) length;
+            double attack = Math.min(1, time / 0.002);
+            double envelope = attack * Math.exp(-fraction * 7) * (1 - fraction);
+            double sound;
+            if (kick) {
+                double frequency = 48 + 95 * Math.exp(-time * 35);
+                phase += 2 * Math.PI * frequency / SAMPLE_RATE;
+                sound = Math.sin(phase) * 0.12;
+            } else {
+                double currentNoise = noise.nextDouble() * 2 - 1;
+                double highPass = (currentNoise - previousNoise) * 0.5;
+                previousNoise = currentNoise;
+                sound = hiHat ? highPass * 0.035
+                    : currentNoise * 0.065 + Math.sin(2 * Math.PI * 180 * time) * 0.025;
+            }
+            samples[offset + i] += sound * envelope;
+        }
     }
 
     private static void addTone(double[] samples, double start, double duration,

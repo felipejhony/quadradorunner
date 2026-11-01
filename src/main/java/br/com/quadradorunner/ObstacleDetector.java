@@ -22,17 +22,13 @@ final class ObstacleDetector {
         int x = START_CLEARANCE;
         while (x < level.finish - FINISH_CLEARANCE) {
             int width = 35 + random.nextInt(36);
-            int height = 35 + random.nextInt(31);
+            // Keep raised obstacles low enough to remain jumpable throughout their cycle.
+            int height = 35 + random.nextInt(obstacles.size() % 3 == 0 ? 11 : 31);
             while (x + width < level.finish - FINISH_CLEARANCE && !isFree(level, x, width)) {
                 x += SCAN_STEP;
             }
             if (x + width >= level.finish - FINISH_CLEARANCE) break;
-            Shape obstacle = switch (random.nextInt(4)) {
-                case 0 -> Level.triangle(x, width, height);
-                case 1 -> new java.awt.geom.Ellipse2D.Double(x, Level.GROUND - height, width, height);
-                case 2 -> Level.diamond(x, width, height);
-                default -> Level.obstacle(x, width, height);
-            };
+            Shape obstacle = ObstacleShapes.random(x, width, height, random);
             obstacles.add(obstacle);
             x += width + OBSTACLE_CLEARANCE + random.nextInt(41);
         }

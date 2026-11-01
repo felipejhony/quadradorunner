@@ -101,7 +101,7 @@ public final class GamePanel extends JPanel {
         setLayout(null);
         resetButton.setBounds(714, 448, 226, 38);
         resetButton.setFocusable(false);
-        resetButton.setToolTipText("Apaga saldo, argolas, habilidades e conclusões após confirmar. R reinicia só a tentativa.");
+
         resetButton.getAccessibleContext().setAccessibleDescription("Reset completo e permanente; exige confirmação.");
         resetButton.addActionListener(event -> resetRequested.accept(this));
         add(resetButton);
@@ -169,8 +169,7 @@ public final class GamePanel extends JPanel {
                 boolean unlocked = session.isLevelUnlocked(i);
                 JButton choice = new GameButton((i + 1) + " — " + level.title + " — "
                     + (completed ? "Concluída · rejogar" : unlocked ? "Liberada · jogar" : "Bloqueada"), false);
-                choice.setToolTipText(unlocked ? "Iniciar uma nova tentativa preservando seu progresso."
-                    : "Conclua as fases anteriores para liberar esta fase.");
+
                 choice.setFocusable(false);
                 choice.setEnabled(unlocked);
                 choice.addActionListener(event -> {
@@ -280,7 +279,8 @@ public final class GamePanel extends JPanel {
 
     private void configureAudio() {
         if (audio != null) audio.configure(muted, !windowFocused || model.state == GameModel.State.PAUSED,
-            model.level.id.equals("level-02") ? GameAudio.Music.SUNRISE : GameAudio.Music.NIGHT);
+            model.level.id.equals("level-03") ? GameAudio.Music.SPACE
+                : model.level.id.equals("level-02") ? GameAudio.Music.SUNRISE : GameAudio.Music.NIGHT);
     }
 
     private void bindKey(String stroke, GameInput.Key key, Runnable command) {
@@ -473,11 +473,29 @@ public final class GamePanel extends JPanel {
             g.setColor(new Color(255, 217, 137));
             g.fillOval(680, 260, 150, 150);
         }
+        if (model.level.id.equals("level-03")) drawUfos(g);
         g.setColor(sunrise ? new Color(123, 78, 87) : BUILDING);
         for (int i = -1; i < 9; i++) {
             int bx = i * 180 - (int) (camera * 0.25) % 180;
             int h = 70 + Math.floorMod(i * 37, 110);
             g.fillRoundRect(bx, GROUND - h, 130, h + 20, 12, 12);
+        }
+    }
+
+    private void drawUfos(Graphics2D g) {
+        for (int i = 0; i < 4; i++) {
+            int x = Math.floorMod(150 + i * 265 - (int) (camera * 0.18), WIDTH + 140) - 70;
+            int y = 150 + i % 3 * 32;
+            g.setColor(new Color(113, 235, 214, 28));
+            g.fillOval(x - 12, y + 4, 112, 36);
+            g.setColor(new Color(113, 235, 214));
+            g.fillOval(x + 25, y - 14, 38, 30);
+            g.setColor(new Color(180, 195, 220));
+            g.fillOval(x, y, 88, 24);
+            g.setColor(new Color(72, 87, 122));
+            g.fillOval(x + 7, y + 9, 74, 12);
+            g.setColor(new Color(255, 223, 130));
+            for (int light = 0; light < 4; light++) g.fillOval(x + 17 + light * 16, y + 10, 5, 4);
         }
     }
 

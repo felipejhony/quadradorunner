@@ -10,6 +10,25 @@ class AudioSamplesTest {
         checkSignal(music, 5000);
     }
 
+    @Test void spaceScoreAddsRhythmicDrumsAndKeepsMelodyAndLoopHeadroom() {
+        byte[] night = AudioSamples.music(GameAudio.Music.NIGHT);
+        byte[] space = AudioSamples.music(GameAudio.Music.SPACE);
+        assertEquals(night.length, space.length);
+        checkSignal(space, 10000);
+        assertArrayEquals(space, AudioSamples.music(GameAudio.Music.SPACE));
+        for (int beat = 0; beat < 32; beat++) {
+            double differenceEnergy = 0;
+            for (int frame = 0; frame < AudioSamples.SAMPLE_RATE / 10; frame++) {
+                int offset = ((int) (beat * 0.5 * AudioSamples.SAMPLE_RATE) + frame) * 2;
+                double difference = sample(space, offset) - sample(night, offset);
+                differenceEnergy += difference * difference;
+            }
+            assertTrue(differenceEnergy > 100000, "Each beat must have percussion");
+            int quietOffset = (int) ((beat * 0.5 + 0.4) * AudioSamples.SAMPLE_RATE) * 2;
+            assertEquals(sample(night, quietOffset), sample(space, quietOffset), "Melody remains between drum hits");
+        }
+    }
+
     @Test void everyEffectIsAudibleShortAndHasSmoothEndpoints() {
         for (GameAudio.Effect effect : GameAudio.Effect.values()) {
             byte[] samples = AudioSamples.effect(effect);
