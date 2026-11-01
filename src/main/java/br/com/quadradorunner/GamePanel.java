@@ -56,6 +56,7 @@ public final class GamePanel extends JPanel {
     private final JButton levelsButton = new GameButton("F  /  Escolher fase", false);
     private final JPanel levelChoices = new JPanel(new GridLayout(0, 1, 0, 10));
     private final JPanel shopChoices = new JPanel(new GridLayout(0, 1, 0, 10));
+    private final JScrollPane shopScroll = new JScrollPane(shopChoices);
     private int selectedShopItem;
     private boolean choosingLevel;
     private int selectedLevel;
@@ -116,9 +117,21 @@ public final class GamePanel extends JPanel {
         levelChoices.setVisible(false);
         add(levelChoices);
         shopChoices.setOpaque(false);
-        shopChoices.setBounds(160, 266, 640, 112);
+        shopChoices.setPreferredSize(new Dimension(610, AbilityShop.Item.values().length * 42 - 10));
+        shopScroll.setBounds(160, 266, 640, 112);
+        shopScroll.setBorder(null);
+        shopScroll.getViewport().setBackground(GameUi.SURFACE);
+        shopScroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        shopScroll.getVerticalScrollBar().setUnitIncrement(42);
+        shopScroll.getVerticalScrollBar().setUI(new javax.swing.plaf.basic.BasicScrollBarUI() {
+            @Override protected void configureScrollBarColors() {
+                thumbColor = GameUi.MINT;
+                trackColor = GameUi.SURFACE;
+            }
+        });
+        shopScroll.setVisible(false);
         shopChoices.setVisible(false);
-        add(shopChoices);
+        add(shopScroll);
         bindKey("F", GameInput.Key.LEVELS, this::toggleLevelMenu);
         bindKey("SPACE", GameInput.Key.SPACE, () -> {
             if (choosingLevel) { ((JButton) levelChoices.getComponent(selectedLevel)).doClick(); return; }
@@ -133,6 +146,12 @@ public final class GamePanel extends JPanel {
         bindKey("RIGHT", GameInput.Key.RIGHT, () -> moveLevelSelection(1));
         bindKey("D", GameInput.Key.DASH, () -> {
             if (model.dash()) play(GameAudio.Effect.DASH);
+        });
+        bindKey("S", GameInput.Key.DURABILITY, () -> {
+            if (model.durability()) play(GameAudio.Effect.SHIELD);
+        });
+        bindKey("W", GameInput.Key.ROCKET, () -> {
+            if (model.fireRocket()) play(GameAudio.Effect.ROCKET);
         });
         bindKey("R", GameInput.Key.RESTART, () -> { session.replay(); clearCollectionMessage(); });
         bindKey("ENTER", GameInput.Key.ADVANCE, () -> {
@@ -170,6 +189,7 @@ public final class GamePanel extends JPanel {
             model.pause();
             choosingLevel = true;
             shopChoices.setVisible(false);
+            shopScroll.setVisible(false);
             levelChoices.removeAll();
             for (int i = 0; i < session.levelCount(); i++) {
                 int target = i;
@@ -264,22 +284,30 @@ public final class GamePanel extends JPanel {
 
     private void refreshShopChoices() {
         shopChoices.setVisible(session.isShopOpen() && !choosingLevel && !resetting);
+        shopScroll.setVisible(shopChoices.isVisible());
+        if (!shopChoices.isVisible()) return;
         shopChoices.removeAll();
         for (AbilityShop.Item item : AbilityShop.Item.values()) {
             int price = AbilityShop.price(model.progress(), item);
             boolean owned = model.progress().unlockedAbilities().contains(item.ability);
             boolean affordable = model.progress().balance() >= price;
-            String status = owned ? "Adquirido" : affordable ? "Comprar" : "Faltam " + (price - model.progress().balance());
+            boolean baseOwned = item.ability.prerequisite() == null
+                || model.progress().unlockedAbilities().contains(item.ability.prerequisite());
+            String status = owned ? "Adquirido" : !baseOwned ? "Requer poder base"
+                : affordable ? "Comprar" : "Faltam " + (price - model.progress().balance());
             GameButton choice = new GameButton((item.ordinal() + 1) + " — " + item.label
                 + " — " + price + " argolas — " + status, false);
             choice.setFocusable(false);
-            choice.setEnabled(!owned && affordable);
+            choice.setEnabled(!owned && affordable && baseOwned);
             choice.setKeyboardSelected(item.ordinal() == selectedShopItem);
             choice.addActionListener(event -> buy(item));
             shopChoices.add(choice);
         }
         shopChoices.revalidate();
+        shopScroll.doLayout();
+        shopScroll.getViewport().doLayout();
         shopChoices.doLayout();
+        shopChoices.scrollRectToVisible(shopChoices.getComponent(selectedShopItem).getBounds());
         shopChoices.repaint();
     }
 
@@ -302,6 +330,7 @@ public final class GamePanel extends JPanel {
             case PURCHASED -> item.label + " desbloqueado permanentemente!";
             case ALREADY_OWNED -> "Você já possui " + item.label + ". Nenhuma argola foi gasta.";
             case INSUFFICIENT_FUNDS -> "Saldo insuficiente para comprar " + item.label + ".";
+            case REQUIRES_BASE -> "Adquira o poder base antes da melhoria.";
             case UNAVAILABLE -> "";
         };
         if (status == AbilityShop.Status.PURCHASED) {
@@ -559,6 +588,7 @@ public final class GamePanel extends JPanel {
         }
         drawAbilityGates(g);
         for (Shape baseObstacle : model.level.obstacles) {
+            if (model.isDestroyed(baseObstacle)) continue;
             if (baseObstacle instanceof CourseObstacle course) {
                 double elapsed = model.obstacleElapsed(course);
                 g.setColor(ACCENT);
@@ -594,6 +624,13 @@ public final class GamePanel extends JPanel {
             g.drawString("2", cx - 4, cy + 5);
         }
         drawRings(g);
+        GameModel.Projectile projectile = model.projectile();
+        if (projectile != null) {
+            g.setColor(new Color(255, 172, 72));
+            g.fillOval((int) projectile.x() - 16, (int) projectile.y() - 4, 18, 8);
+            g.setColor(INK);
+            g.fillOval((int) projectile.x() - 5, (int) projectile.y() - 5, 14, 10);
+        }
         int fx = model.level.finish;
         g.setColor(INK);
         g.fillRect(fx, GROUND - 140, 4, 140);
@@ -622,6 +659,14 @@ public final class GamePanel extends JPanel {
         }
         g.setColor(SHADOW);
         g.fillOval(px - 4, GROUND - 7, SIZE + 8, 12);
+        if (model.isDurable()) {
+            g.setColor(new Color(120, 210, 255, 75));
+            g.fillOval(px - 12, (int) model.y - 12, SIZE + 24, SIZE + 24);
+            g.setColor(new Color(155, 230, 255));
+            g.setStroke(new BasicStroke(3));
+            g.drawOval(px - 9, (int) model.y - 9, SIZE + 18, SIZE + 18);
+            g.setStroke(new BasicStroke(1));
+        }
         g.setColor(model.isDashing() ? DASH_COLOR : model.isGliding() ? GLIDE_COLOR : ACCENT);
         g.fillRoundRect(px, (int) model.y, SIZE, SIZE, 7, 7);
         g.setColor(PLAYER_FACE);
@@ -667,6 +712,7 @@ public final class GamePanel extends JPanel {
     private void drawAbilityIcons(Graphics2D g) {
         int x = 20;
         for (GameProgress.Ability ability : GameProgress.Ability.values()) {
+            if (ability.prerequisite() != null) continue;
             if (!model.progress().unlockedAbilities().contains(ability)) continue;
             hudCard(g, x, 86, 34, 32);
             g.setColor(ability == GameProgress.Ability.DASH ? DASH_COLOR
@@ -692,6 +738,29 @@ public final class GamePanel extends JPanel {
                         g.drawLine(x + 17, y - 6, x + 25, y);
                     }
                 }
+                case DURABILITY -> {
+                    g.drawArc(x + 8, 92, 18, 21, 180, 180);
+                    g.drawLine(x + 8, 102, x + 8, 92);
+                    g.drawLine(x + 26, 102, x + 26, 92);
+                    g.drawLine(x + 8, 92, x + 26, 92);
+                }
+                case ROCKET -> {
+                    g.fillOval(x + 8, 98, 20, 9);
+                    g.drawLine(x + 5, 102, x + 8, 102);
+                }
+                default -> { }
+            }
+            double cooldown = switch (ability) {
+                case DASH -> model.dashCooldownRemaining();
+                case DOUBLE_JUMP -> model.doubleJumpCooldownRemaining();
+                case DURABILITY -> model.durabilityCooldownRemaining();
+                case ROCKET -> model.rocketCooldownRemaining();
+                default -> 0;
+            };
+            if (cooldown > 0) {
+                g.setColor(INK);
+                g.setFont(GameUi.bold(11));
+                g.drawString(Integer.toString((int) Math.ceil(cooldown)), x + 12, 132);
             }
             x += 42;
         }
@@ -750,7 +819,7 @@ public final class GamePanel extends JPanel {
             centered(g, "R repete a tentativa · progresso preservado", 473, CONTROLS_FONT);
         }
         g.setColor(INK);
-        g.drawString("ESPAÇO/CIMA pular | Segure ESPAÇO planar | D dash | P/ESC pausa | R reiniciar", 28, 518);
+        g.drawString("ESPAÇO/CIMA pular | ESPAÇO planar | D dash | S escudo | W foguete | P pausa | R reiniciar", 28, 518);
         g.setColor(muted ? OBSTACLE_FILL : ACCENT);
         g.drawString(muted ? "M  /  SOM OFF" : "M  /  SOM ON", 810, 518);
     }
@@ -826,17 +895,17 @@ public final class GamePanel extends JPanel {
         g.setColor(OVERLAY_SHADE);
         g.fillRoundRect(60, 138, 840, 294, 20, 20);
         g.setColor(ACCENT);
-        centered(g, "PREÇOS SOBEM 3 ARGOLAS A CADA COMPRA", 162, OVERLAY_LABEL);
+        centered(g, "PODERES: +3 POR COMPRA · MELHORIAS: PREÇO FIXO", 162, OVERLAY_LABEL);
         g.setColor(INK);
         centered(g, "LOJA DE HABILIDADES", 202, OVERLAY_TITLE);
         g.setColor(RING_GOLD);
         centered(g, "Saldo: " + model.progress().balance() + " argola(s)", 232, OVERLAY_HINT);
         g.setColor(INK);
-        centered(g, "Após comprar: D: dash; segure ESPAÇO: planar; pulo duplo: pressione pular novamente no ar.", 254, CONTROLS_FONT);
+        centered(g, "D: Dash · S: Durabilidade · W: Foguete · ESPAÇO: pular / planar", 254, CONTROLS_FONT);
         g.setColor(INK);
         centered(g, shopMessage, 394, OVERLAY_SUBTITLE);
         g.setColor(ACCENT);
-        centered(g, "Setas: escolher   ENTER / ESPA?O: comprar   B / ESC: voltar", 420, OVERLAY_HINT);
+        centered(g, "Setas / rolagem: escolher   ENTER / ESPAÇO: comprar   B / ESC: voltar", 420, OVERLAY_HINT);
     }
 
     private void centered(Graphics2D g, String text, int baseline, Font font) {

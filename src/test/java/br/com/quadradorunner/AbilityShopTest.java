@@ -22,12 +22,13 @@ class AbilityShopTest {
 
     @Test void exactBalanceIsAcceptedAndInsufficientBalanceLeavesSnapshotUnchanged() {
         for (AbilityShop.Item item : AbilityShop.Item.values()) {
-            GameProgress exact = new GameProgress(item.price, Set.of(), Set.of(), Set.of());
+            Set<GameProgress.Ability> base = item.ability.prerequisite() == null ? Set.of() : Set.of(item.ability.prerequisite());
+            GameProgress exact = new GameProgress(item.price, Set.of(), base, Set.of());
             AbilityShop.Purchase purchased = AbilityShop.purchase(exact, item);
             assertEquals(AbilityShop.Status.PURCHASED, purchased.status());
             assertEquals(0, purchased.progress().balance());
             for (int balance : List.of(0, item.price - 1)) {
-                GameProgress shortfall = new GameProgress(balance, Set.of(), Set.of(), Set.of());
+                GameProgress shortfall = new GameProgress(balance, Set.of(), base, Set.of());
                 AbilityShop.Purchase rejected = AbilityShop.purchase(shortfall, item);
                 assertEquals(AbilityShop.Status.INSUFFICIENT_FUNDS, rejected.status());
                 assertSame(shortfall, rejected.progress());

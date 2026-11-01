@@ -6,7 +6,17 @@ import java.util.Set;
 /** Immutable permanent-progress snapshot, independent of a running game and storage. */
 record GameProgress(int balance, Set<RingId> collectedRings, Set<Ability> unlockedAbilities,
                     Set<String> completedLevelIds) {
-    enum Ability { DASH, GLIDE, DOUBLE_JUMP }
+    enum Ability {
+        DASH, GLIDE, DOUBLE_JUMP, DURABILITY, ROCKET, DASH_UPGRADE, DOUBLE_JUMP_UPGRADE;
+
+        Ability prerequisite() {
+            return switch (this) {
+                case DASH_UPGRADE -> DASH;
+                case DOUBLE_JUMP_UPGRADE -> DOUBLE_JUMP;
+                default -> null;
+            };
+        }
+    }
 
     /** A ring ID is scoped to its level; no string concatenation or positional index. */
     record RingId(String levelId, String ringId) {
@@ -24,6 +34,11 @@ record GameProgress(int balance, Set<RingId> collectedRings, Set<Ability> unlock
         if (balance < 0) throw new IllegalArgumentException("Balance cannot be negative");
         collectedRings = Set.copyOf(collectedRings);
         unlockedAbilities = Set.copyOf(unlockedAbilities);
+        for (Ability ability : unlockedAbilities) {
+            if (ability.prerequisite() != null && !unlockedAbilities.contains(ability.prerequisite())) {
+                throw new IllegalArgumentException("Upgrade requires its base ability");
+            }
+        }
         completedLevelIds = Set.copyOf(completedLevelIds);
         for (String levelId : completedLevelIds) requireId(levelId, "completedLevelId");
     }

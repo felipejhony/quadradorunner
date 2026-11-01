@@ -57,6 +57,18 @@ Escopo autorizado: loja semelhante à seleção de fases; pilhas e quedas a part
 
 ## Registro de execução
 
+### Poderes e melhorias — solicitação de 2026-11-01
+
+| Etapa | Status | Entrega |
+|---|---|---|
+| 14 | OK | Durabilidade (S, 5 s, recarga 10 s desde ativação), Foguete (W, projétil guiado, recarga 4 s), melhorias de Dash e Pulo duplo, loja com rolagem e persistência. |
+| 15 | PENDENTE | Fase 4 Piscinas: cenário interno com piscinas/aquedutos, sem sol, música original aquática, progressão e testes. |
+
+- Escopo autorizado explicitamente inclui ambas as etapas. Segundo salto: decisão confirmada pelo usuário de recarga de 2 s, reduzida para 1 s. Dash II reduz 1,2 s para 0,6 s, sem alterar duração/velocidade. Pouso continua necessário para renovar os dois saltos; cristais temporários preservados.
+- Durabilidade protege contra obstáculos/barreiras, não cria chão sobre buracos. Foguete mira o obstáculo mais próximo até 700 px à frente e remove-o apenas ao atingir; destruição não é salva e reiniciar restaura o mapa.
+- Novos poderes custam inicialmente 5 argolas; melhorias custam 3 fixas, exigem o poder base e não aumentam os preços dos poderes. Novos desbloqueios usam identificadores no conjunto existente, preservando leitura dos saves anteriores e formato versão 1. Progresso rejeita melhoria sem base.
+- Primeira validação: 181 testes aprovados em `mvn test`, incluindo oito novos testes de duração, proteção, expiração, projétil, pausa/reinício, melhorias e compra/save. Interface da loja inspecionada em imagem. Sem save pessoal alterado.
+
 ### Ajuste solicitado: aprendizado sem dicas
 
 - Removidas as instruções textuais dos obstáculos e barreiras, a recomendação de compra na abertura e as soluções sugeridas após derrota. Mantidos os controles básicos, estados da interface e sinais visuais dos perigos.

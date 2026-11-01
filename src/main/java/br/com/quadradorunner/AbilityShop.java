@@ -10,7 +10,11 @@ final class AbilityShop {
     enum Item {
         DASH(GameProgress.Ability.DASH, "Dash", 4),
         GLIDE(GameProgress.Ability.GLIDE, "Planar", 6),
-        DOUBLE_JUMP(GameProgress.Ability.DOUBLE_JUMP, "Pulo duplo", 5);
+        DOUBLE_JUMP(GameProgress.Ability.DOUBLE_JUMP, "Pulo duplo", 5),
+        DURABILITY(GameProgress.Ability.DURABILITY, "Durabilidade", 5),
+        ROCKET(GameProgress.Ability.ROCKET, "Foguete", 5),
+        DASH_UPGRADE(GameProgress.Ability.DASH_UPGRADE, "Dash II · recarga pela metade", 3),
+        DOUBLE_JUMP_UPGRADE(GameProgress.Ability.DOUBLE_JUMP_UPGRADE, "Pulo duplo II · recarga pela metade", 3);
 
         final GameProgress.Ability ability;
         final String label;
@@ -23,13 +27,15 @@ final class AbilityShop {
         }
     }
 
-    enum Status { PURCHASED, ALREADY_OWNED, INSUFFICIENT_FUNDS, UNAVAILABLE }
+    enum Status { PURCHASED, ALREADY_OWNED, INSUFFICIENT_FUNDS, REQUIRES_BASE, UNAVAILABLE }
     record Purchase(Status status, GameProgress progress) { }
 
     private AbilityShop() { }
 
     static int price(GameProgress progress, Item item) {
-        return item.price + PRICE_INCREASE_PER_PURCHASE * progress.unlockedAbilities().size();
+        if (item.ability.prerequisite() != null) return item.price;
+        long basePurchases = progress.unlockedAbilities().stream().filter(a -> a.prerequisite() == null).count();
+        return item.price + PRICE_INCREASE_PER_PURCHASE * (int) basePurchases;
     }
 
     static Purchase purchase(GameProgress progress, Item item) {
@@ -37,6 +43,10 @@ final class AbilityShop {
         Objects.requireNonNull(item, "item");
         if (progress.unlockedAbilities().contains(item.ability)) {
             return new Purchase(Status.ALREADY_OWNED, progress);
+        }
+        if (item.ability.prerequisite() != null
+                && !progress.unlockedAbilities().contains(item.ability.prerequisite())) {
+            return new Purchase(Status.REQUIRES_BASE, progress);
         }
         int price = price(progress, item);
         if (progress.balance() < price) {

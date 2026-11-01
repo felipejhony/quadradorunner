@@ -25,15 +25,20 @@ class ShopPanelTest {
             win(panel, session);
             press(panel, "B");
             javax.swing.JPanel choices = java.util.Arrays.stream(panel.getComponents())
-                .filter(c -> c instanceof javax.swing.JPanel && c.isVisible())
-                .map(c -> (javax.swing.JPanel) c).findFirst().orElseThrow();
-            assertEquals(3, choices.getComponentCount());
+                .filter(c -> c instanceof javax.swing.JScrollPane && c.isVisible())
+                .map(c -> (javax.swing.JPanel) ((javax.swing.JScrollPane) c).getViewport().getView()).findFirst().orElseThrow();
+            assertEquals(7, choices.getComponentCount());
+            assertFalse(choices.getComponent(5).isEnabled()); // Upgrade requires Dash.
             ((javax.swing.JButton) choices.getComponent(0)).doClick();
             assertTrue(session.current().progress().unlockedAbilities().contains(GameProgress.Ability.DASH));
             assertFalse(choices.getComponent(0).isEnabled());
             press(panel, "DOWN");
             press(panel, "ENTER");
             assertTrue(session.current().progress().unlockedAbilities().contains(GameProgress.Ability.GLIDE));
+            for (int i = 0; i < 5; i++) { release(panel, "DOWN"); press(panel, "DOWN"); }
+            var scroll = (javax.swing.JScrollPane) choices.getParent().getParent();
+            assertTrue(scroll.getViewport().getViewPosition().y > 0);
+            assertTrue(scroll.getViewport().getViewRect().intersects(choices.getComponent(6).getBounds()));
             release(panel, "B");
             press(panel, "B");
             assertFalse(choices.isVisible());

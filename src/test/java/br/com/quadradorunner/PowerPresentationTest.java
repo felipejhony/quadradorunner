@@ -37,12 +37,13 @@ class PowerPresentationTest {
         SwingUtilities.invokeAndWait(() -> {
             BufferedImage empty = hud(Set.of());
             for (GameProgress.Ability ability : GameProgress.Ability.values()) {
+                if (ability.prerequisite() != null) continue;
                 BufferedImage owned = hud(Set.of(ability));
                 assertNotEquals(empty.getRGB(22, 100), owned.getRGB(22, 100));
                 assertEquals(empty.getRGB(64, 100), owned.getRGB(64, 100));
             }
             BufferedImage all = hud(Set.of(GameProgress.Ability.values()));
-            for (int x : new int[]{22, 64, 106}) assertNotEquals(empty.getRGB(x, 100), all.getRGB(x, 100));
+            for (int x : new int[]{22, 64, 106, 148, 190}) assertNotEquals(empty.getRGB(x, 100), all.getRGB(x, 100));
         });
     }
 

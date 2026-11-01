@@ -24,6 +24,12 @@ final class GameModel {
     static final double DASH_SPEED = 780;
     static final double DASH_DURATION = 0.2;
     static final double DASH_COOLDOWN = 1.2;
+    static final double DOUBLE_JUMP_COOLDOWN = 2;
+    static final double DURABILITY_DURATION = 5;
+    static final double DURABILITY_COOLDOWN = 10;
+    static final double ROCKET_COOLDOWN = 4;
+    private static final double ROCKET_SPEED = 1200;
+    private static final double ROCKET_RANGE = 700;
     static final double GLIDE_GRAVITY = 300;
     static final double GLIDE_MAX_FALL_SPEED = 120;
     private static final double MAX_DASH_DISPLACEMENT = 2;
@@ -35,6 +41,15 @@ final class GameModel {
     private int ringsCollectedThisAttempt;
     private double dashRemaining;
     private double dashCooldownRemaining;
+    private double doubleJumpCooldownRemaining;
+    private double durabilityRemaining;
+    private double durabilityCooldownRemaining;
+    private double rocketCooldownRemaining;
+    private Shape rocketTarget;
+    private double rocketX;
+    private double rocketY;
+    private final java.util.Set<Shape> destroyedObstacles = new HashSet<>();
+    record Projectile(double x, double y) { }
     private boolean glideHeld;
     private GameProgress.Ability blockedGate;
     record LevelSummary(String levelId, int newRings, int totalBalance) { }
@@ -64,6 +79,51 @@ final class GameModel {
     boolean isDashing() { return dashRemaining > 0; }
     double dashTimeRemaining() { return dashRemaining; }
     double dashCooldownRemaining() { return dashCooldownRemaining; }
+    double doubleJumpCooldownRemaining() { return doubleJumpCooldownRemaining; }
+    boolean isDurable() { return durabilityRemaining > 0; }
+    double durabilityTimeRemaining() { return durabilityRemaining; }
+    double durabilityCooldownRemaining() { return durabilityCooldownRemaining; }
+    double rocketCooldownRemaining() { return rocketCooldownRemaining; }
+    Projectile projectile() { return rocketTarget == null ? null : new Projectile(rocketX, rocketY); }
+    boolean isDestroyed(Shape obstacle) { return destroyedObstacles.contains(obstacle); }
+
+    boolean durability() {
+        if (state != State.RUNNING || !progress.unlockedAbilities().contains(GameProgress.Ability.DURABILITY)
+                || durabilityCooldownRemaining > 0) return false;
+        durabilityRemaining = DURABILITY_DURATION;
+        durabilityCooldownRemaining = DURABILITY_COOLDOWN;
+        return true;
+    }
+
+    boolean fireRocket() {
+        if (state != State.RUNNING || !progress.unlockedAbilities().contains(GameProgress.Ability.ROCKET)
+                || rocketCooldownRemaining > 0 || rocketTarget != null) return false;
+        rocketTarget = level.obstacles.stream().filter(o -> !isDestroyed(o))
+            .filter(o -> o.getBounds2D().getMinX() >= x + SIZE
+                && o.getBounds2D().getMinX() <= x + SIZE + ROCKET_RANGE)
+            .min(java.util.Comparator.comparingDouble(o -> o.getBounds2D().getMinX())).orElse(null);
+        if (rocketTarget == null) return false;
+        rocketX = x + SIZE;
+        rocketY = y + SIZE / 2.0;
+        rocketCooldownRemaining = ROCKET_COOLDOWN;
+        return true;
+    }
+
+    private void updateRocket(double dt) {
+        if (rocketTarget == null) return;
+        Rectangle2D target = obstacleShape(rocketTarget).getBounds2D();
+        double dx = target.getCenterX() - rocketX;
+        double dy = target.getCenterY() - rocketY;
+        double distance = Math.hypot(dx, dy);
+        double travel = ROCKET_SPEED * dt;
+        if (distance <= travel + 6) {
+            destroyedObstacles.add(rocketTarget);
+            rocketTarget = null;
+        } else {
+            rocketX += dx / distance * travel;
+            rocketY += dy / distance * travel;
+        }
+    }
 
     void setGlideHeld(boolean held) {
         glideHeld = held && state == State.RUNNING
@@ -78,7 +138,8 @@ final class GameModel {
         if (state != State.RUNNING || !progress.unlockedAbilities().contains(GameProgress.Ability.DASH)
                 || isDashing() || dashCooldownRemaining > 0) return false;
         dashRemaining = DASH_DURATION;
-        dashCooldownRemaining = DASH_COOLDOWN;
+        dashCooldownRemaining = progress.unlockedAbilities().contains(GameProgress.Ability.DASH_UPGRADE)
+            ? DASH_COOLDOWN / 2 : DASH_COOLDOWN;
         return true;
     }
 
@@ -112,7 +173,14 @@ final class GameModel {
 
     boolean jump() {
         if (state == State.READY) state = State.RUNNING;
-        if (state == State.RUNNING && (grounded || ((powerRemaining > 0 || progress.unlockedAbilities().contains(GameProgress.Ability.DOUBLE_JUMP)) && jumpsUsed < 2))) {
+        boolean permanentDoubleJump = progress.unlockedAbilities().contains(GameProgress.Ability.DOUBLE_JUMP);
+        boolean secondJump = !grounded && jumpsUsed < 2
+            && (powerRemaining > 0 || (permanentDoubleJump && doubleJumpCooldownRemaining == 0));
+        if (state == State.RUNNING && (grounded || secondJump)) {
+            if (!grounded && permanentDoubleJump) {
+                doubleJumpCooldownRemaining = progress.unlockedAbilities().contains(GameProgress.Ability.DOUBLE_JUMP_UPGRADE)
+                    ? DOUBLE_JUMP_COOLDOWN / 2 : DOUBLE_JUMP_COOLDOWN;
+            }
             velocityY = JUMP_SPEED;
             grounded = false;
             jumpsUsed++;
@@ -136,6 +204,12 @@ final class GameModel {
         ringsCollectedThisAttempt = 0;
         dashRemaining = 0;
         dashCooldownRemaining = 0;
+        doubleJumpCooldownRemaining = 0;
+        durabilityRemaining = 0;
+        durabilityCooldownRemaining = 0;
+        rocketCooldownRemaining = 0;
+        rocketTarget = null;
+        destroyedObstacles.clear();
         glideHeld = false;
         java.util.Arrays.fill(collected, false);
         blockedGate = null;
@@ -164,6 +238,8 @@ final class GameModel {
         }
         if (state == State.LOST || state == State.WON) {
             dashRemaining = 0;
+            durabilityRemaining = 0;
+            rocketTarget = null;
             glideHeld = false;
         }
     }
@@ -182,6 +258,11 @@ final class GameModel {
             }
         }
         invulnerabilityRemaining = countDown(invulnerabilityRemaining, dt);
+        durabilityRemaining = countDown(durabilityRemaining, dt);
+        durabilityCooldownRemaining = countDown(durabilityCooldownRemaining, dt);
+        doubleJumpCooldownRemaining = countDown(doubleJumpCooldownRemaining, dt);
+        rocketCooldownRemaining = countDown(rocketCooldownRemaining, dt);
+        updateRocket(dt);
         powerRemaining = Math.max(0, powerRemaining - dt);
         x += speed * dt;
         boolean gliding = isGliding();
@@ -207,10 +288,11 @@ final class GameModel {
         }
         Rectangle2D.Double player = new Rectangle2D.Double(x, y, SIZE, SIZE);
         for (Shape obstacle : level.obstacles) {
+            if (isDestroyed(obstacle) || isDurable()) continue;
             Rectangle2D bounds = obstacle.getBounds2D();
             if (bounds.getMaxX() <= x || bounds.getMinX() >= x + SIZE) continue;
-            if (obstacleShape(obstacle).intersects(player) && touchedObstacles.add(obstacle)
-                    && invulnerabilityRemaining == 0) {
+            if (invulnerabilityRemaining == 0 && obstacleShape(obstacle).intersects(player)
+                    && touchedObstacles.add(obstacle)) {
                 lives--;
                 invulnerabilityRemaining = HIT_INVULNERABILITY;
                 if (lives == 0) state = State.LOST;
@@ -223,8 +305,10 @@ final class GameModel {
                     case DASH -> isDashing();
                     case GLIDE -> isGliding();
                     case DOUBLE_JUMP -> jumpsUsed == 2;
+                    case DURABILITY -> isDurable();
+                    case ROCKET, DASH_UPGRADE, DOUBLE_JUMP_UPGRADE -> false;
                 };
-                if (gate.intersects(player) && !active) {
+                if (gate.intersects(player) && !active && !isDurable()) {
                     blockedGate = gate.ability();
                     state = State.LOST;
                     break;
