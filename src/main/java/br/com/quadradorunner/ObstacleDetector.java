@@ -24,7 +24,7 @@ final class ObstacleDetector {
             int width = 35 + random.nextInt(36);
             int slot = obstacles.size();
             boolean splitter = slot % 5 == 4;
-            boolean advanced = level.id.equals("level-03") && slot > 0;
+            boolean advanced = (level.id.equals("level-03") || level.id.equals("level-04")) && slot > 0;
             if (splitter) width = 140;
             // Keep raised obstacles low enough to remain jumpable throughout their cycle.
             int height = 35 + random.nextInt(obstacles.size() % 3 == 0 ? 11 : 31);

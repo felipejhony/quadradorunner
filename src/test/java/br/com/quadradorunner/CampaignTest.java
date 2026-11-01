@@ -12,7 +12,7 @@ class CampaignTest {
 
     @Test void campaignPreservesFirstLevelAndDeclaresDistinctSkillRoutes() {
         List<Level> levels = Level.campaign();
-        assertEquals(List.of("level-01", "level-02", "level-03"), levels.stream().map(level -> level.id).toList());
+        assertEquals(List.of("level-01", "level-02", "level-03", "level-04"), levels.stream().map(level -> level.id).toList());
         assertEquals(8400, levels.get(0).finish);
         assertTrue(levels.get(0).obstacles.size() >= 18 && levels.get(0).obstacles.size() <= 25);
         assertTrue(levels.get(0).powerUps.isEmpty());
@@ -34,6 +34,7 @@ class CampaignTest {
         assertFalse(fresh.isLevelUnlocked(2));
         assertFalse(fresh.isLevelUnlocked(-1));
         assertFalse(fresh.isLevelUnlocked(3));
+        assertFalse(fresh.isLevelUnlocked(4));
         GameSession purchasedOnly = new GameSession(Level.campaign(), progress(Set.of(),
             Set.of(GameProgress.Ability.DASH, GameProgress.Ability.GLIDE)));
         assertFalse(purchasedOnly.isLevelUnlocked(1));
@@ -70,7 +71,7 @@ class CampaignTest {
                 assertTrue(session.advance());
             }
         }
-        assertEquals(Set.of("level-01", "level-02", "level-03"), session.current().progress().completedLevelIds());
+        assertEquals(Set.of("level-01", "level-02", "level-03", "level-04"), session.current().progress().completedLevelIds());
         assertFalse(session.advance());
     }
 

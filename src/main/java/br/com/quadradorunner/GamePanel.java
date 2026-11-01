@@ -118,7 +118,7 @@ public final class GamePanel extends JPanel {
         add(levelChoices);
         shopChoices.setOpaque(false);
         shopChoices.setPreferredSize(new Dimension(610, AbilityShop.Item.values().length * 42 - 10));
-        shopScroll.setBounds(160, 266, 640, 112);
+        shopScroll.setBounds(160, 266, 640, 116);
         shopScroll.setBorder(null);
         shopScroll.getViewport().setBackground(GameUi.SURFACE);
         shopScroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
@@ -172,6 +172,10 @@ public final class GamePanel extends JPanel {
         bindKey("1", GameInput.Key.BUY_DASH, () -> buy(AbilityShop.Item.DASH));
         bindKey("2", GameInput.Key.BUY_GLIDE, () -> buy(AbilityShop.Item.GLIDE));
         bindKey("3", GameInput.Key.BUY_DOUBLE_JUMP, () -> buy(AbilityShop.Item.DOUBLE_JUMP));
+        bindKey("4", GameInput.Key.BUY_DURABILITY, () -> buy(AbilityShop.Item.DURABILITY));
+        bindKey("5", GameInput.Key.BUY_ROCKET, () -> buy(AbilityShop.Item.ROCKET));
+        bindKey("6", GameInput.Key.BUY_DASH_UPGRADE, () -> buy(AbilityShop.Item.DASH_UPGRADE));
+        bindKey("7", GameInput.Key.BUY_DOUBLE_JUMP_UPGRADE, () -> buy(AbilityShop.Item.DOUBLE_JUMP_UPGRADE));
         bindKey("M", GameInput.Key.MUTE, () -> muted = !muted);
         timer = new Timer(16, event -> tick());
         timer.setCoalesce(true);
@@ -217,6 +221,7 @@ public final class GamePanel extends JPanel {
             highlightLevelSelection();
             levelChoices.setVisible(true);
             levelChoices.revalidate();
+            levelChoices.doLayout();
             requestFocusInWindow();
         }
         synchronizeTimer();
@@ -325,6 +330,7 @@ public final class GamePanel extends JPanel {
     }
 
     private void buy(AbilityShop.Item item) {
+        selectedShopItem = item.ordinal();
         AbilityShop.Status status = session.buy(item);
         shopMessage = switch (status) {
             case PURCHASED -> item.label + " desbloqueado permanentemente!";
@@ -346,7 +352,8 @@ public final class GamePanel extends JPanel {
 
     private void configureAudio() {
         if (audio != null) audio.configure(muted, !windowFocused || model.state == GameModel.State.PAUSED,
-            model.level.id.equals("level-03") ? GameAudio.Music.SPACE
+            model.level.id.equals("level-04") ? GameAudio.Music.POOLS
+                : model.level.id.equals("level-03") ? GameAudio.Music.SPACE
                 : model.level.id.equals("level-02") ? GameAudio.Music.SUNRISE : GameAudio.Music.NIGHT);
     }
 
@@ -527,6 +534,10 @@ public final class GamePanel extends JPanel {
     }
 
     private void drawBackground(Graphics2D g) {
+        if (model.level.id.equals("level-04")) {
+            PoolScenery.draw(g, camera);
+            return;
+        }
         boolean sunrise = model.level.id.equals("level-02");
         g.setPaint(new GradientPaint(0, 0, sunrise ? new Color(129, 65, 96) : SKY_TOP,
             0, GROUND, sunrise ? new Color(255, 177, 92) : SKY_BOTTOM));
@@ -568,7 +579,8 @@ public final class GamePanel extends JPanel {
     }
 
     private void drawWorld(Graphics2D g) {
-        g.setColor(GROUND_COLOR);
+        boolean pools = model.level.id.equals("level-04");
+        g.setColor(pools ? PoolScenery.TILE : GROUND_COLOR);
         g.fillRect(0, GROUND, WIDTH, HEIGHT - GROUND);
         g.setColor(ACCENT);
         g.fillRect(0, GROUND, WIDTH, 3);
@@ -580,7 +592,7 @@ public final class GamePanel extends JPanel {
         AffineTransform original = g.getTransform();
         g.translate(-camera, 0);
         for (Level.Pit pit : model.level.pits) {
-            g.setColor(new Color(12, 18, 30));
+            g.setColor(pools ? PoolScenery.WATER : new Color(12, 18, 30));
             g.fillRect(pit.x(), GROUND, pit.width(), HEIGHT - GROUND);
             g.setColor(Color.WHITE);
             g.drawLine(pit.x(), GROUND, pit.x(), HEIGHT);

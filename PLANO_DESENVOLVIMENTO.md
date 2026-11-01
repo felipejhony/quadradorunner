@@ -62,12 +62,16 @@ Escopo autorizado: loja semelhante à seleção de fases; pilhas e quedas a part
 | Etapa | Status | Entrega |
 |---|---|---|
 | 14 | OK | Durabilidade (S, 5 s, recarga 10 s desde ativação), Foguete (W, projétil guiado, recarga 4 s), melhorias de Dash e Pulo duplo, loja com rolagem e persistência. |
-| 15 | PENDENTE | Fase 4 Piscinas: cenário interno com piscinas/aquedutos, sem sol, música original aquática, progressão e testes. |
+| 15 | OK | Fase 4 Piscinas: cenário interno com piscinas/aquedutos, sem sol, música original aquática, progressão e testes. |
 
 - Escopo autorizado explicitamente inclui ambas as etapas. Segundo salto: decisão confirmada pelo usuário de recarga de 2 s, reduzida para 1 s. Dash II reduz 1,2 s para 0,6 s, sem alterar duração/velocidade. Pouso continua necessário para renovar os dois saltos; cristais temporários preservados.
 - Durabilidade protege contra obstáculos/barreiras, não cria chão sobre buracos. Foguete mira o obstáculo mais próximo até 700 px à frente e remove-o apenas ao atingir; destruição não é salva e reiniciar restaura o mapa.
 - Novos poderes custam inicialmente 5 argolas; melhorias custam 3 fixas, exigem o poder base e não aumentam os preços dos poderes. Novos desbloqueios usam identificadores no conjunto existente, preservando leitura dos saves anteriores e formato versão 1. Progresso rejeita melhoria sem base.
 - Primeira validação: 181 testes aprovados em `mvn test`, incluindo oito novos testes de duração, proteção, expiração, projétil, pausa/reinício, melhorias e compra/save. Interface da loja inspecionada em imagem. Sem save pessoal alterado.
+- Poderes e melhorias registrados no commit `324253b` antes de implementar Piscinas.
+- Piscinas (`level-04`) tem 8.400 px, 40 argolas com IDs estáveis e quatro vãos com água. O cenário procedural `PoolScenery` desenha teto fechado, azulejos, duas fileiras de aquedutos e piscinas ao fundo. Trilha POOLS original de 16 segundos com notas aquáticas e ecos; geração/reprodução permanece no worker de áudio existente.
+- A campanha agora possui quatro fases. Saves que concluíram as três anteriores permitem selecionar Piscinas sem reset; IDs e coletáveis anteriores preservados. As 64 argolas únicas da campanha financiam os sete itens do catálogo (61 argolas), sem farm de argolas já coletadas. Melhorias têm preço fixo e não contam para o aumento dos poderes base.
+- Validação final: `mvn test` e `mvn package` aprovados, **186 testes, sem falhas/erros/ignorados**. Cinco novos testes cobrem acesso/save antigo, percurso sem dano em 100 sementes, espaçamento/distribuição, orçamento completo, sinal da música e cenário/tema de áudio. Testes de campanha incluem a quarta conclusão. Imagens `pools-running.png`, `pools-selection.png` e loja inspecionadas em `target/render-review`; JAR atualizado. Sem avaliação auditiva real nem partida manual em janela nativa.
 
 ### Ajuste solicitado: aprendizado sem dicas
 

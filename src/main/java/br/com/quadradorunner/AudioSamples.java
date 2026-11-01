@@ -12,6 +12,7 @@ final class AudioSamples {
     }
 
     static byte[] music(GameAudio.Music music) {
+        if (music == GameAudio.Music.POOLS) return poolMusic();
         double[] samples = new double[(int) (SAMPLE_RATE * MUSIC_SECONDS)];
         // Four slow major/minor seventh chords, with a soft pentatonic arpeggio.
         int[][] chords = music == GameAudio.Music.SUNRISE
@@ -26,6 +27,43 @@ final class AudioSamples {
         }
         if (music == GameAudio.Music.SPACE) addDrums(samples);
         return pcm(samples);
+    }
+
+    private static byte[] poolMusic() {
+        double[] dry = new double[(int) (SAMPLE_RATE * MUSIC_SECONDS)];
+        int[][] chords = {{50, 57, 60, 64}, {55, 62, 65, 69}, {53, 60, 64, 67}, {48, 55, 62, 65}};
+        for (int bar = 0; bar < chords.length; bar++) {
+            for (int note : chords[bar]) addTone(dry, bar * 4, 4, note, note, 0.018);
+            for (int beat = 0; beat < 6; beat++) {
+                int note = chords[bar][beat % 4] + 24;
+                addWaterNote(dry, bar * 4 + beat * 0.6, note);
+            }
+        }
+        double[] wet = dry.clone();
+        // Two quiet reflections suggest the interior of a stone water chamber.
+        for (int echo = 1; echo <= 2; echo++) {
+            int delay = (int) (SAMPLE_RATE * 0.23 * echo);
+            double gain = echo == 1 ? 0.3 : 0.15;
+            for (int i = delay; i < wet.length; i++) wet[i] += dry[i - delay] * gain;
+        }
+        for (int i = 0; i < wet.length; i++) {
+            double fade = Math.min(1, (wet.length - 1 - i) / (SAMPLE_RATE * 0.45));
+            wet[i] *= fade * fade;
+        }
+        return pcm(wet);
+    }
+
+    private static void addWaterNote(double[] samples, double start, int note) {
+        int offset = (int) (start * SAMPLE_RATE);
+        int length = (int) (SAMPLE_RATE * 0.8);
+        double frequency = 440 * Math.pow(2, (note - 69) / 12.0);
+        for (int i = 0; i < length && offset + i < samples.length; i++) {
+            double t = i / (double) SAMPLE_RATE;
+            double fraction = i / (double) length;
+            double envelope = Math.min(1, t / 0.012) * Math.exp(-6 * fraction) * (1 - fraction);
+            double phase = 2 * Math.PI * frequency * t;
+            samples[offset + i] += (Math.sin(phase) + 0.2 * Math.sin(phase * 2.01)) * envelope * 0.045;
+        }
     }
 
     static byte[] effect(GameAudio.Effect effect) {

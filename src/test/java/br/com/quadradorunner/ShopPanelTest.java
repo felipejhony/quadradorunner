@@ -39,6 +39,8 @@ class ShopPanelTest {
             var scroll = (javax.swing.JScrollPane) choices.getParent().getParent();
             assertTrue(scroll.getViewport().getViewPosition().y > 0);
             assertTrue(scroll.getViewport().getViewRect().intersects(choices.getComponent(6).getBounds()));
+            press(panel, "4");
+            assertTrue(session.current().progress().unlockedAbilities().contains(GameProgress.Ability.DURABILITY));
             release(panel, "B");
             press(panel, "B");
             assertFalse(choices.isVisible());

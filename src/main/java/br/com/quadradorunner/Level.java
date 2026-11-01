@@ -91,7 +91,7 @@ final class Level {
     }
 
     static List<Level> campaign() {
-        return List.of(standard(), dashRoute(), glideRoute());
+        return List.of(standard(), dashRoute(), glideRoute(), pools());
     }
 
     static Level dashRoute() {
@@ -118,6 +118,22 @@ final class Level {
             new Ring("ring-03", 720, GROUND - 120), new Ring("ring-04", 1050, GROUND - 36),
             new Ring("ring-05", 1300, GROUND - 36), new Ring("ring-06", 1650, GROUND - 36)),
             List.of()), random), random);
+    }
+
+    static Level pools() {
+        return pools(new java.util.Random());
+    }
+
+    static Level pools(java.util.Random random) {
+        List<Ring> rings = new java.util.ArrayList<>();
+        for (int i = 0; i < 40; i++) {
+            rings.add(new Ring("ring-" + (i + 1), 350 + (i / 5) * 1000 + (i % 5) * 42,
+                GROUND - (i % 3 == 1 ? 120 : 36)));
+        }
+        List<Pit> pools = List.of(new Pit(1800, 110), new Pit(3800, 110),
+            new Pit(5800, 110), new Pit(7800, 110));
+        return ObstacleDetector.fill(new Level("level-04", "Piscinas", FINISH,
+            List.of(), List.of(), rings, List.of(), pools), random);
     }
 
     static Level withRandomPits(Level level, java.util.Random random) {
