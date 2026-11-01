@@ -18,6 +18,27 @@ import org.junit.jupiter.api.io.TempDir;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ShopPanelTest {
+    @Test void shopButtonsAndKeyboardSharePurchaseRules() throws Exception {
+        SwingUtilities.invokeAndWait(() -> {
+            GameSession session = session(new GameProgress(30, Set.of(), Set.of(), Set.of()));
+            GamePanel panel = new GamePanel(session, GameAudio::new, progress -> { });
+            win(panel, session);
+            press(panel, "B");
+            javax.swing.JPanel choices = java.util.Arrays.stream(panel.getComponents())
+                .filter(c -> c instanceof javax.swing.JPanel && c.isVisible())
+                .map(c -> (javax.swing.JPanel) c).findFirst().orElseThrow();
+            assertEquals(3, choices.getComponentCount());
+            ((javax.swing.JButton) choices.getComponent(0)).doClick();
+            assertTrue(session.current().progress().unlockedAbilities().contains(GameProgress.Ability.DASH));
+            assertFalse(choices.getComponent(0).isEnabled());
+            press(panel, "DOWN");
+            press(panel, "ENTER");
+            assertTrue(session.current().progress().unlockedAbilities().contains(GameProgress.Ability.GLIDE));
+            release(panel, "B");
+            press(panel, "B");
+            assertFalse(choices.isVisible());
+        });
+    }
     @Test void bindingsRejectOutsideShopRepeatedKeysDuplicatesAndInsufficientFunds() throws Exception {
         SwingUtilities.invokeAndWait(() -> {
             GameSession session = session(new GameProgress(4, Set.of(), Set.of(), Set.of()));

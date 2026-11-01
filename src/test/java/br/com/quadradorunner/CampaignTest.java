@@ -54,12 +54,16 @@ class CampaignTest {
         assertTrue(all.isLevelUnlocked(2));
     }
 
-    @Test void actualCampaignCanBeFinishedWithoutBuyingAnySkills() throws Exception {
+    @Test void actualCampaignCanBeFinishedWithDashForFallingObstacles() throws Exception {
         GameSession session = new GameSession(Level.campaign(), new GameProgress());
         for (int index = 0; index < session.levelCount(); index++) {
             runFirst(session.current());
             assertEquals(GameModel.State.WON, session.current().state);
-            assertTrue(session.current().progress().unlockedAbilities().isEmpty());
+            if (index == 1) {
+                assertTrue(session.openShop());
+                assertEquals(AbilityShop.Status.PURCHASED, session.buy(AbilityShop.Item.DASH));
+                session.closeShop();
+            }
             checkpoint(session.current().progress());
             if (session.hasNextLevel()) {
                 assertTrue(session.missingNextAbilities().isEmpty());
@@ -152,17 +156,7 @@ class CampaignTest {
     }
 
     private void runFirst(GameModel model) {
-        model.jump();
-        for (int i = 0; i < 5000 && model.state == GameModel.State.RUNNING; i++) {
-            if (model.grounded && model.level.obstacles.stream().anyMatch(obstacle -> {
-                double distance = obstacle.getBounds2D().getMinX() - (model.x + GameModel.SIZE);
-                return distance > 0 && distance < 65;
-            }) || model.grounded && model.level.pits.stream().anyMatch(pit -> {
-                double distance = pit.x() - (model.x + GameModel.SIZE);
-                return distance > 0 && distance < 35;
-            })) model.jump();
-            model.update(FixedStepLoop.STEP);
-        }
+        CoursePilot.complete(model);
     }
 
     private void runDash(GameModel model, double activateAt) {

@@ -55,6 +55,8 @@ public final class GamePanel extends JPanel {
     private final JButton resetButton = new GameButton("Zerar progresso", true);
     private final JButton levelsButton = new GameButton("F  /  Escolher fase", false);
     private final JPanel levelChoices = new JPanel(new GridLayout(0, 1, 0, 10));
+    private final JPanel shopChoices = new JPanel(new GridLayout(0, 1, 0, 10));
+    private int selectedShopItem;
     private boolean choosingLevel;
     private int selectedLevel;
     private boolean resetting;
@@ -113,14 +115,19 @@ public final class GamePanel extends JPanel {
         levelChoices.setBounds(160, 210, 640, 185);
         levelChoices.setVisible(false);
         add(levelChoices);
+        shopChoices.setOpaque(false);
+        shopChoices.setBounds(160, 266, 640, 112);
+        shopChoices.setVisible(false);
+        add(shopChoices);
         bindKey("F", GameInput.Key.LEVELS, this::toggleLevelMenu);
         bindKey("SPACE", GameInput.Key.SPACE, () -> {
             if (choosingLevel) { ((JButton) levelChoices.getComponent(selectedLevel)).doClick(); return; }
+            if (session.isShopOpen()) { buy(AbilityShop.Item.values()[selectedShopItem]); return; }
             jump();
             model.setGlideHeld(true);
             if (model.isGliding()) play(GameAudio.Effect.GLIDE);
         }, () -> model.setGlideHeld(false));
-        bindKey("UP", GameInput.Key.UP, () -> { if (choosingLevel) moveLevelSelection(-1); else jump(); });
+        bindKey("UP", GameInput.Key.UP, () -> { if (choosingLevel || session.isShopOpen()) moveLevelSelection(-1); else jump(); });
         bindKey("DOWN", GameInput.Key.DOWN, () -> moveLevelSelection(1));
         bindKey("LEFT", GameInput.Key.LEFT, () -> moveLevelSelection(-1));
         bindKey("RIGHT", GameInput.Key.RIGHT, () -> moveLevelSelection(1));
@@ -130,6 +137,7 @@ public final class GamePanel extends JPanel {
         bindKey("R", GameInput.Key.RESTART, () -> { session.replay(); clearCollectionMessage(); });
         bindKey("ENTER", GameInput.Key.ADVANCE, () -> {
             if (choosingLevel) { ((JButton) levelChoices.getComponent(selectedLevel)).doClick(); return; }
+            if (session.isShopOpen()) { buy(AbilityShop.Item.values()[selectedShopItem]); return; }
             if (session.advance()) { model = session.current(); clearCollectionMessage(); }
         });
         bindKey("P", GameInput.Key.PAUSE, () -> model.togglePause());
@@ -140,7 +148,7 @@ public final class GamePanel extends JPanel {
         });
         bindKey("B", GameInput.Key.SHOP, () -> {
             if (session.isShopOpen()) session.closeShop();
-            else if (session.openShop()) shopMessage = "";
+            else if (session.openShop()) { shopMessage = ""; selectedShopItem = 0; }
         });
         bindKey("1", GameInput.Key.BUY_DASH, () -> buy(AbilityShop.Item.DASH));
         bindKey("2", GameInput.Key.BUY_GLIDE, () -> buy(AbilityShop.Item.GLIDE));
@@ -161,6 +169,7 @@ public final class GamePanel extends JPanel {
         else {
             model.pause();
             choosingLevel = true;
+            shopChoices.setVisible(false);
             levelChoices.removeAll();
             for (int i = 0; i < session.levelCount(); i++) {
                 int target = i;
@@ -195,6 +204,11 @@ public final class GamePanel extends JPanel {
     }
 
     private void moveLevelSelection(int direction) {
+        if (session.isShopOpen() && !choosingLevel) {
+            selectedShopItem = Math.floorMod(selectedShopItem + direction, AbilityShop.Item.values().length);
+            refreshShopChoices();
+            return;
+        }
         if (!choosingLevel) return;
         for (int i = 0; i < session.levelCount(); i++) {
             selectedLevel = Math.floorMod(selectedLevel + direction, session.levelCount());
@@ -212,6 +226,7 @@ public final class GamePanel extends JPanel {
     private void closeLevelMenu() {
         choosingLevel = false;
         levelChoices.setVisible(false);
+        refreshShopChoices();
     }
 
     private void resetLocally() {
@@ -247,7 +262,29 @@ public final class GamePanel extends JPanel {
         repaint();
     }
 
+    private void refreshShopChoices() {
+        shopChoices.setVisible(session.isShopOpen() && !choosingLevel && !resetting);
+        shopChoices.removeAll();
+        for (AbilityShop.Item item : AbilityShop.Item.values()) {
+            int price = AbilityShop.price(model.progress(), item);
+            boolean owned = model.progress().unlockedAbilities().contains(item.ability);
+            boolean affordable = model.progress().balance() >= price;
+            String status = owned ? "Adquirido" : affordable ? "Comprar" : "Faltam " + (price - model.progress().balance());
+            GameButton choice = new GameButton((item.ordinal() + 1) + " — " + item.label
+                + " — " + price + " argolas — " + status, false);
+            choice.setFocusable(false);
+            choice.setEnabled(!owned && affordable);
+            choice.setKeyboardSelected(item.ordinal() == selectedShopItem);
+            choice.addActionListener(event -> buy(item));
+            shopChoices.add(choice);
+        }
+        shopChoices.revalidate();
+        shopChoices.doLayout();
+        shopChoices.repaint();
+    }
+
     private void refreshResetButton() {
+        refreshShopChoices();
         levelsButton.setVisible(model.state != GameModel.State.RUNNING);
         levelsButton.setEnabled(!resetting);
         resetButton.setVisible(resetting || model.state != GameModel.State.RUNNING);
@@ -271,6 +308,7 @@ public final class GamePanel extends JPanel {
             progressChanged.accept(model.progress());
             play(GameAudio.Effect.PURCHASE);
         } else if (status != AbilityShop.Status.UNAVAILABLE) play(GameAudio.Effect.DENIED);
+        refreshShopChoices();
     }
 
     private void play(GameAudio.Effect effect) {
@@ -296,6 +334,7 @@ public final class GamePanel extends JPanel {
                 && key != GameInput.Key.SPACE) return;
             if (input.press(key)) {
                 command.run();
+                refreshShopChoices();
                 synchronizeTimer();
                 repaint();
             }
@@ -520,6 +559,24 @@ public final class GamePanel extends JPanel {
         }
         drawAbilityGates(g);
         for (Shape baseObstacle : model.level.obstacles) {
+            if (baseObstacle instanceof CourseObstacle course) {
+                double elapsed = model.obstacleElapsed(course);
+                g.setColor(ACCENT);
+                g.fill(course.harmlessShape(elapsed));
+                g.setFont(CONTROLS_FONT);
+                String hint = switch (course.kind) {
+                    case FALLING -> "QUEDA! D: DASH";
+                    case SPLITTER -> "NÃO PULE";
+                    case STACK_UNDER -> "POR BAIXO";
+                    case STACK_MIDDLE -> "PELO MEIO";
+                };
+                g.setColor(RING_GOLD);
+                g.drawString(hint, (int) (course.x + course.width + 12), GROUND - 180);
+                if (course.kind == CourseObstacle.Kind.FALLING && elapsed >= 0 && elapsed < 0.65) {
+                    g.setColor(new Color(255, 100, 90, 75));
+                    g.fill(new Rectangle2D.Double(course.x, 120, course.width, GROUND - 120));
+                }
+            }
             Shape obstacle = model.obstacleShape(baseObstacle);
             Rectangle2D bounds = obstacle.getBounds2D();
             if (bounds.getMaxX() < camera || bounds.getMinX() > camera + WIDTH) continue;
@@ -794,25 +851,10 @@ public final class GamePanel extends JPanel {
         centered(g, "Saldo: " + model.progress().balance() + " argola(s)", 232, OVERLAY_HINT);
         g.setColor(INK);
         centered(g, "Após comprar: D: dash; segure ESPAÇO: planar; pulo duplo: pressione pular novamente no ar.", 254, CONTROLS_FONT);
-        int row = 0;
-        for (AbilityShop.Item item : AbilityShop.Item.values()) {
-            int y = 284 + row * 34;
-            g.setFont(OVERLAY_HINT);
-            g.setColor(INK);
-            g.drawString((row + 1) + "  " + item.label, 180, y);
-            g.setColor(RING_GOLD);
-            g.drawString(AbilityShop.price(model.progress(), item) + " argolas", 440, y);
-            boolean owned = model.progress().unlockedAbilities().contains(item.ability);
-            boolean affordable = model.progress().balance() >= AbilityShop.price(model.progress(), item);
-            g.setColor(owned || affordable ? ACCENT : OBSTACLE_FILL);
-            g.drawString(owned ? "Adquirido" : affordable ? "Disponível"
-                : "Faltam " + (AbilityShop.price(model.progress(), item) - model.progress().balance()), 650, y);
-            row++;
-        }
         g.setColor(INK);
         centered(g, shopMessage, 394, OVERLAY_SUBTITLE);
         g.setColor(ACCENT);
-        centered(g, "1 / 2 / 3 comprar     B / ESC voltar ao resumo", 420, OVERLAY_HINT);
+        centered(g, "Setas: escolher   ENTER / ESPA?O: comprar   B / ESC: voltar", 420, OVERLAY_HINT);
     }
 
     private void centered(Graphics2D g, String text, int baseline, Font font) {

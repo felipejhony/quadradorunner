@@ -39,6 +39,7 @@ final class GameModel {
     private GameProgress.Ability blockedGate;
     record LevelSummary(String levelId, int newRings, int totalBalance) { }
     private double worldTime;
+    private final java.util.Map<CourseObstacle, Double> obstacleTriggers = new java.util.HashMap<>();
     double powerRemaining;
     int jumpsUsed;
     State state = State.READY;
@@ -122,6 +123,7 @@ final class GameModel {
 
     void restart() {
         worldTime = 0;
+        obstacleTriggers.clear();
         lives = MAX_LIVES;
         invulnerabilityRemaining = 0;
         touchedObstacles.clear();
@@ -173,6 +175,12 @@ final class GameModel {
 
     private void updateMovement(double dt, double speed) {
         worldTime += dt;
+        for (Shape shape : level.obstacles) {
+            if (shape instanceof CourseObstacle obstacle
+                    && x + SIZE >= obstacle.x - CourseObstacle.TRIGGER_DISTANCE) {
+                obstacleTriggers.putIfAbsent(obstacle, worldTime);
+            }
+        }
         invulnerabilityRemaining = countDown(invulnerabilityRemaining, dt);
         powerRemaining = Math.max(0, powerRemaining - dt);
         x += speed * dt;
@@ -199,6 +207,8 @@ final class GameModel {
         }
         Rectangle2D.Double player = new Rectangle2D.Double(x, y, SIZE, SIZE);
         for (Shape obstacle : level.obstacles) {
+            Rectangle2D bounds = obstacle.getBounds2D();
+            if (bounds.getMaxX() <= x || bounds.getMinX() >= x + SIZE) continue;
             if (obstacleShape(obstacle).intersects(player) && touchedObstacles.add(obstacle)
                     && invulnerabilityRemaining == 0) {
                 lives--;
@@ -242,11 +252,20 @@ final class GameModel {
     }
 
     Shape obstacleShape(Shape obstacle) {
+        if (obstacle instanceof CourseObstacle course) {
+            return course.harmfulShape(obstacleElapsed(course), x);
+        }
         int index = level.obstacles.indexOf(obstacle);
         double offset = index % 3 == 0
             ? -OBSTACLE_LIFT * (1 - Math.cos(worldTime * OBSTACLE_OSCILLATION_SPEED)) / 2 : 0;
         return java.awt.geom.AffineTransform.getTranslateInstance(0, offset).createTransformedShape(obstacle);
     }
+
+    double obstacleElapsed(CourseObstacle obstacle) {
+        Double triggered = obstacleTriggers.get(obstacle);
+        return triggered == null ? -1 : worldTime - triggered;
+    }
+
 
     Ring movingRing(Ring ring) {
         double amplitude = ring.y() >= GROUND - 40 ? 4 : 12;

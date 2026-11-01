@@ -22,6 +22,10 @@ final class ObstacleDetector {
         int x = START_CLEARANCE;
         while (x < level.finish - FINISH_CLEARANCE) {
             int width = 35 + random.nextInt(36);
+            int slot = obstacles.size();
+            boolean splitter = slot % 5 == 4;
+            boolean advanced = level.id.equals("level-03") && slot > 0;
+            if (splitter) width = 140;
             // Keep raised obstacles low enough to remain jumpable throughout their cycle.
             int height = 35 + random.nextInt(obstacles.size() % 3 == 0 ? 11 : 31);
             while (x + width < level.finish - FINISH_CLEARANCE && !isFree(level, x, width)) {
@@ -29,6 +33,16 @@ final class ObstacleDetector {
             }
             if (x + width >= level.finish - FINISH_CLEARANCE) break;
             Shape obstacle = ObstacleShapes.random(x, width, height, random);
+            if (splitter) {
+                obstacle = new CourseObstacle(x, width, CourseObstacle.Kind.SPLITTER);
+            } else if (advanced) {
+                CourseObstacle.Kind kind = switch (slot % 3) {
+                    case 0 -> CourseObstacle.Kind.FALLING;
+                    case 1 -> CourseObstacle.Kind.STACK_UNDER;
+                    default -> CourseObstacle.Kind.STACK_MIDDLE;
+                };
+                obstacle = new CourseObstacle(x, width, kind);
+            }
             obstacles.add(obstacle);
             x += width + OBSTACLE_CLEARANCE + random.nextInt(41);
         }

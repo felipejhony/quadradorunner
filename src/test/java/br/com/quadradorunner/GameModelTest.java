@@ -142,17 +142,7 @@ class GameModelTest {
     @Test void standardLevelCanBeCompletedWithoutCrystals() {
         Level standard = Level.standard();
         GameModel game = new GameModel(new Level(standard.obstacles, List.of()));
-        game.jump();
-        for (int step = 0; step < 5000 && game.state == RUNNING; step++) {
-            if (game.grounded) {
-                boolean approaching = standard.obstacles.stream().anyMatch(obstacle -> {
-                    double distance = obstacle.getBounds2D().getMinX() - (game.x + GameModel.SIZE);
-                    return distance > 0 && distance < 65;
-                });
-                if (approaching) game.jump();
-            }
-            steps(game, 1);
-        }
+        CoursePilot.complete(game);
         assertEquals(WON, game.state, "Failed at x=" + game.x);
         assertEquals(0, game.powerRemaining);
     }

@@ -40,6 +40,21 @@ Um jogo 2D de plataforma com fases rejogáveis, argolas douradas coletáveis e h
 | 11 | OK | Seleção/replay de fases: escolher fases concluídas para rejogar; preservar saldo, compras e argolas ausentes. Teste de persistência entre sessões. |
 | 12 | OK | Refinamento: HUD de saldo/habilidades, feedback audiovisual, instruções e documentação. Rodar testes completos e fazer validação manual do fluxo. |
 
+## Extensão solicitada em 2026-11-01
+
+Escopo autorizado: loja semelhante à seleção de fases; pilhas e quedas a partir da fase 3; blocos divididos em todas as fases. As etapas históricas 01–12 permanecem registradas como entregues. Saves, IDs de argolas, saldo e regras de compra foram preservados.
+
+| Etapa | Status | Entrega / critério de aceite |
+|---|---|---|
+| 13 | OK | Loja com botões, mouse e teclado; pilhas com corredores e quedas com janela de Dash na fase 3; bloco dividido seguro no chão em todas as fases; testes de física, geração e interface. |
+
+- `CourseObstacle` concentra a geometria especial; `GameModel` mantém gatilhos de proximidade e relógios por tentativa, congelados na pausa e limpos no reinício. Renderização consulta a mesma geometria da colisão.
+- O bloco dividido abre na aproximação. Metade inferior verde sem colisão; metade superior vermelha fecha gradualmente até deixar 40 px acima do chão para o jogador de 34 px. Pular causa dano.
+- Pilhas impedem saltar por cima; corredor inferior permite correr, corredor central exige salto. Quedas sinalizam o local e exigem Dash bem temporizado para evitar dano. O acesso à fase permanece sequencial, sem bloqueio por compra; prepare Dash na loja para não perder vidas nas quedas.
+- Testes de percurso adaptados: saltar diante de qualquer obstáculo deixou de ser uma estratégia válida. Mantida a verificação de terminar sem dano em 100 sementes; a campanha integra compra real de Dash com saldo coletado.
+- Validação: `mvn test` aprovado; imagens da loja e dos novos obstáculos geradas em `target/render-review` e inspecionadas. Sem partida manual em janela nativa; sem alteração de save pessoal.
+- Checkpoint anterior `f98961a`: tema, áudio e variações que já estavam no workspace, preservados após suíte de 166 testes aprovada.
+
 ## Registro de execução
 _Ao terminar ou encontrar bloqueio, adicione uma linha:_
 

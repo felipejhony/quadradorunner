@@ -4,7 +4,15 @@ Este jogo foi criado com inteligência artificial (IA) para fins educacionais, c
 
 Jogo 2D de corrida lateral feito com **Java 17, Maven, Swing e Java2D**, sem dependências externas em tempo de execução. Todos os elementos são desenhados por código.
 
-O quadrado corre automaticamente da esquerda para a direita. A campanha tem três fases: a pista original com 17 obstáculos, uma passagem que exige dash e uma corrente aérea que exige planar. Alcance a bandeira de cada fase para ver o resumo e preparar o próximo desafio. As colisões acompanham o formato dos obstáculos (retângulos, triângulos, círculos e losangos). A interseção das hitboxes encerra a tentativa; tangência exata não é considerada colisão. O jogador usa uma caixa retangular, inclusive nos cantos arredondados do desenho. Cristais também usam uma caixa retangular de coleta, maior que o losango desenhado.
+O quadrado corre automaticamente da esquerda para a direita em três fases com obstáculos gerados antes da partida. Alcance a bandeira para ver o resumo e preparar o próximo desafio. As colisões acompanham o formato dos obstáculos e retiram uma vida, com breve proteção após o impacto. Tangência exata não é considerada colisão. O jogador usa uma caixa retangular, inclusive nos cantos arredondados do desenho.
+
+## Novos desafios e loja
+
+Blocos grandes podem aparecer em qualquer fase. Ao se aproximar, eles se dividem: continue correndo **sem pular**. A metade inferior verde é inofensiva; a superior vermelha causa dano. O vão diminui durante a passagem, mas continua seguro no chão, sem poderes.
+
+A partir da terceira fase aparecem pilhas altas com passagem por baixo ou pelo meio. Corra por baixo ou salte no vão central conforme o aviso. Também caem blocos do céu: a marcação vermelha avisa o local do impacto. Prepare **Dash** na loja e pressione **D** para atravessar antes da queda; o poder não concede invulnerabilidade. Buracos continuam independentes desses obstáculos.
+
+A loja agora usa botões no estilo da seleção de fases. Clique para comprar ou use setas e Enter/Espaço. Os atalhos 1/2/3 compram Dash/Planar/Pulo duplo. Itens adquiridos ou sem saldo ficam desabilitados. Os preços iniciais são 4/6/5 argolas e aumentam 3 por habilidade já comprada. B/Esc volta ao resumo.
 
 ## Requisitos
 

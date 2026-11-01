@@ -30,14 +30,7 @@ class MovingWorldTest {
     @Test void randomizedLayoutsCanBeCompletedWithSingleJumps() {
         for (int seed = 0; seed < 100; seed++) {
             GameModel model = new GameModel(Level.standard(new Random(seed * 7919L)));
-            model.jump();
-            for (int frame = 0; frame < 5000 && model.state == GameModel.State.RUNNING; frame++) {
-                if (model.grounded && model.level.obstacles.stream().anyMatch(obstacle -> {
-                    double distance = obstacle.getBounds2D().getMinX() - model.x - GameModel.SIZE;
-                    return distance > 0 && distance < 65;
-                })) model.jump();
-                model.update(FixedStepLoop.STEP);
-            }
+            CoursePilot.complete(model);
             assertEquals(GameModel.State.WON, model.state, "seed=" + seed + ", x=" + model.x);
         }
     }

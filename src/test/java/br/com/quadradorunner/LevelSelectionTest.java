@@ -86,7 +86,7 @@ class LevelSelectionTest {
             assertEquals(GameModel.State.PAUSED, original.state);
             JPanel choices = null;
             for (var component : panel.getComponents()) {
-                if (component instanceof JPanel child) choices = child;
+                if (component instanceof JPanel child && child.isVisible()) choices = child;
             }
             assertNotNull(choices);
             assertTrue(choices.isVisible());

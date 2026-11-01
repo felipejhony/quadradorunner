@@ -49,20 +49,9 @@ class ObstacleDetectorTest {
     }
 
     private void completeWithSingleJumps(Level level, int seed) {
-        GameModel model = new GameModel(level);
-        model.jump();
-        for (int frame = 0; frame < 5000 && model.state == GameModel.State.RUNNING; frame++) {
-            boolean obstacleAhead = level.obstacles.stream().anyMatch(shape -> {
-                double distance = shape.getBounds2D().getMinX() - model.x - GameModel.SIZE;
-                return distance > 0 && distance < 65;
-            });
-            boolean pitAhead = level.pits.stream().anyMatch(pit -> {
-                double distance = pit.x() - model.x - GameModel.SIZE;
-                return distance > 0 && distance < 35;
-            });
-            if (model.grounded && (obstacleAhead || pitAhead)) model.jump();
-            model.update(FixedStepLoop.STEP);
-        }
+        GameModel model = new GameModel(level, new GameProgress(0, java.util.Set.of(),
+            java.util.Set.of(GameProgress.Ability.DASH), java.util.Set.of()));
+        CoursePilot.complete(model);
         assertEquals(GameModel.State.WON, model.state, level.id + ", seed=" + seed + ", x=" + model.x);
         assertEquals(GameModel.MAX_LIVES, model.lives, "Course must allow avoiding all damage");
     }
