@@ -563,15 +563,6 @@ public final class GamePanel extends JPanel {
                 double elapsed = model.obstacleElapsed(course);
                 g.setColor(ACCENT);
                 g.fill(course.harmlessShape(elapsed));
-                g.setFont(CONTROLS_FONT);
-                String hint = switch (course.kind) {
-                    case FALLING -> "QUEDA! D: DASH";
-                    case SPLITTER -> "NÃO PULE";
-                    case STACK_UNDER -> "POR BAIXO";
-                    case STACK_MIDDLE -> "PELO MEIO";
-                };
-                g.setColor(RING_GOLD);
-                g.drawString(hint, (int) (course.x + course.width + 12), GROUND - 180);
                 if (course.kind == CourseObstacle.Kind.FALLING && elapsed >= 0 && elapsed < 0.65) {
                     g.setColor(new Color(255, 100, 90, 75));
                     g.fill(new Rectangle2D.Double(course.x, 120, course.width, GROUND - 120));
@@ -670,7 +661,6 @@ public final class GamePanel extends JPanel {
             g.setFont(POWER_FONT);
             g.drawString(dash ? "BARREIRA DASH" : "CORRENTE AÉREA", gate.x() - 65, 155);
             g.setFont(CONTROLS_FONT);
-            g.drawString(dash ? "D durante a travessia" : "Segure ESPAÇO na descida", gate.x() - 65, 175);
         }
     }
 
@@ -782,23 +772,15 @@ public final class GamePanel extends JPanel {
             return "Restam " + (total - collected) + " argola(s) nesta fase. As coletadas permanecem salvas.";
         }
         if (!model.level.gates.isEmpty()) return "Prepare-se para o desafio de " + model.level.title + ".";
-        return "Compre o pulo duplo na loja por 5 argolas.";
+        return model.level.title;
     }
 
     private String routeInstruction() {
-        return model.level.requiredAbilities.contains(GameProgress.Ability.DASH)
-            ? "Ative D pouco antes da barreira roxa e atravesse durante o impulso."
-            : "Pule antes da corrente azul e entre nela já descendo, mantendo ESPAÇO pressionado.";
+        return model.level.title;
     }
 
     private String lossMessage() {
-        if (model.blockedGate() == GameProgress.Ability.DASH) {
-            return "Atravesse a barreira roxa enquanto o dash estiver ativo.";
-        }
-        if (model.blockedGate() == GameProgress.Ability.GLIDE) {
-            return "Entre na corrente já descendo e segure ESPAÇO para planar.";
-        }
-        return "Você bateu em um obstáculo. Tente pular um pouco antes.";
+        return "Tentativa encerrada.";
     }
 
     private void overlay(Graphics2D g, String title, String subtitle, String hint) {

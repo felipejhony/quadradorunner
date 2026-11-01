@@ -56,6 +56,11 @@ Escopo autorizado: loja semelhante à seleção de fases; pilhas e quedas a part
 - Checkpoint anterior `f98961a`: tema, áudio e variações que já estavam no workspace, preservados após suíte de 166 testes aprovada.
 
 ## Registro de execução
+
+### Ajuste solicitado: aprendizado sem dicas
+
+- Removidas as instruções textuais dos obstáculos e barreiras, a recomendação de compra na abertura e as soluções sugeridas após derrota. Mantidos os controles básicos, estados da interface e sinais visuais dos perigos.
+- Alteração apenas de apresentação em `GamePanel`; física, colisões, compras e saves preservados. `mvn test` e `mvn package` aprovados: 173 testes sem falhas; JAR atualizado. Sem partida manual em janela nativa.
 _Ao terminar ou encontrar bloqueio, adicione uma linha:_
 
 | Data | Etapa | Resultado | Evidência (testes/arquivos) | Observações |

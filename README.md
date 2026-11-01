@@ -10,7 +10,7 @@ O quadrado corre automaticamente da esquerda para a direita em três fases com o
 
 Blocos grandes podem aparecer em qualquer fase. Ao se aproximar, eles se dividem: continue correndo **sem pular**. A metade inferior verde é inofensiva; a superior vermelha causa dano. O vão diminui durante a passagem, mas continua seguro no chão, sem poderes.
 
-A partir da terceira fase aparecem pilhas altas com passagem por baixo ou pelo meio. Corra por baixo ou salte no vão central conforme o aviso. Também caem blocos do céu: a marcação vermelha avisa o local do impacto. Prepare **Dash** na loja e pressione **D** para atravessar antes da queda; o poder não concede invulnerabilidade. Buracos continuam independentes desses obstáculos.
+A partir da terceira fase aparecem pilhas altas com passagem por baixo ou pelo meio. Também caem blocos do céu, com marcação visual do local do impacto. Os obstáculos não exibem dicas textuais de como atravessá-los; o jogador descobre as estratégias durante a partida. Buracos continuam independentes desses obstáculos.
 
 A loja agora usa botões no estilo da seleção de fases. Clique para comprar ou use setas e Enter/Espaço. Os atalhos 1/2/3 compram Dash/Planar/Pulo duplo. Itens adquiridos ou sem saldo ficam desabilitados. Os preços iniciais são 4/6/5 argolas e aumentam 3 por habilidade já comprada. B/Esc volta ao resumo.
 
