@@ -11,6 +11,29 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class GamePanelTest {
+    @Test void rendersBrokenHeartsAfterLosingLife() throws Exception {
+        SwingUtilities.invokeAndWait(() -> {
+            GameModel model = new GameModel(new Level(List.of(Level.obstacle(200, 70, 80)), List.of()));
+            GamePanel panel = new GamePanel(model);
+            panel.setSize(GamePanel.WIDTH, GamePanel.HEIGHT);
+            model.state = GameModel.State.RUNNING;
+            model.x = 190;
+            panel.updateGame(FixedStepLoop.STEP);
+            assertEquals(2, model.lives);
+            for (int step = 0; step < 24; step++) panel.updateGame(FixedStepLoop.STEP);
+            BufferedImage image = new BufferedImage(GamePanel.WIDTH, GamePanel.HEIGHT,
+                BufferedImage.TYPE_INT_RGB);
+            Graphics2D g = image.createGraphics();
+            try { panel.paint(g); }
+            finally { g.dispose(); }
+            try {
+                Path path = Path.of("target", "render-review", "damage-hearts.png");
+                Files.createDirectories(path.getParent());
+                ImageIO.write(image, "png", path.toFile());
+            } catch (java.io.IOException exception) { throw new AssertionError(exception); }
+        });
+    }
+
     @Test void bindingsFocusAndLifecycleWorkOnEdtWithoutAWindow() throws Exception {
         SwingUtilities.invokeAndWait(() -> {
             GameModel model = new GameModel(new Level(List.of(), List.of()));

@@ -72,6 +72,7 @@ public final class GamePanel extends JPanel {
     private final Timer timer;
     private long lastTick;
     private double camera;
+    private final DamageFeedback damageFeedback = new DamageFeedback();
 
     public GamePanel() {
         this(new GameModel(Level.standard()));
@@ -411,7 +412,9 @@ public final class GamePanel extends JPanel {
     private void synchronizeTimer() {
         refreshResetButton();
         configureAudio();
-        boolean shouldRun = !resetting && isDisplayable() && model.state == GameModel.State.RUNNING;
+        boolean shouldRun = !resetting && isDisplayable()
+            && (model.state == GameModel.State.RUNNING
+                || (damageFeedback.active() && model.state != GameModel.State.PAUSED && windowFocused));
         if (shouldRun && timer.isRunning()) return;
         loop.reset();
         lastTick = System.nanoTime();
@@ -449,7 +452,15 @@ public final class GamePanel extends JPanel {
         int collectedBefore = collectedCount();
         GameProgress previousProgress = model.progress();
         int previousLives = model.lives;
+        GameModel previousModel = model;
+        if (model.state != GameModel.State.PAUSED && windowFocused) damageFeedback.update(dt);
         session.update(dt);
+        if (previousModel.lives < previousLives) {
+            double hitCamera = Math.max(0, Math.min(previousModel.x - CAMERA_ANCHOR,
+                previousModel.level.finish - WIDTH + FINISH_MARGIN));
+            damageFeedback.start(previousModel.x - hitCamera + SIZE / 2.0,
+                previousModel.y + SIZE / 2.0);
+        }
         if (model != session.current()) {
             model = session.current();
             clearCollectionMessage();
@@ -530,7 +541,10 @@ public final class GamePanel extends JPanel {
                 }
                 default -> { }
             }
-        } finally { g.dispose(); }
+        } finally {
+            damageFeedback.draw(g);
+            g.dispose();
+        }
     }
 
     private void drawBackground(Graphics2D g) {
@@ -679,11 +693,13 @@ public final class GamePanel extends JPanel {
             g.drawOval(px - 9, (int) model.y - 9, SIZE + 18, SIZE + 18);
             g.setStroke(new BasicStroke(1));
         }
-        g.setColor(model.isDashing() ? DASH_COLOR : model.isGliding() ? GLIDE_COLOR : ACCENT);
-        g.fillRoundRect(px, (int) model.y, SIZE, SIZE, 7, 7);
-        g.setColor(PLAYER_FACE);
-        g.fillRect(px + 22, (int) model.y + 9, 5, 6);
-        g.fillRect(px + 23, (int) model.y + 23, 8, 3);
+        if (damageFeedback.playerVisible()) {
+            g.setColor(model.isDashing() ? DASH_COLOR : model.isGliding() ? GLIDE_COLOR : ACCENT);
+            g.fillRoundRect(px, (int) model.y, SIZE, SIZE, 7, 7);
+            g.setColor(PLAYER_FACE);
+            g.fillRect(px + 22, (int) model.y + 9, 5, 6);
+            g.fillRect(px + 23, (int) model.y + 23, 8, 3);
+        }
         g.setTransform(original);
     }
 

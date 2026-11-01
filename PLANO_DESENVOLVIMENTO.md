@@ -57,6 +57,12 @@ Escopo autorizado: loja semelhante à seleção de fases; pilhas e quedas a part
 
 ## Registro de execução
 
+### Feedback de perda de vida — solicitação de 2026-11-01
+
+- Implementado em `DamageFeedback` e `GamePanel`: o quadrado pisca por um segundo após perder vida; três corações se dividem em metades que voam, giram e desaparecem gradualmente. Animação atualizada fora da renderização, congelada na pausa e na perda de foco.
+- Efeito preservado brevemente ao perder a última vida e retornar ao início, sem alterar regras de dano, campanha ou saves. Escopo adicional autorizado pelo pedido explícito; etapas históricas preservadas.
+- Validação: `mvn test -q` aprovado, 189 testes sem falhas. Novos testes cobrem piscar, expiração, movimento/desaparecimento das partículas e renderização após colisão. Imagem `target/render-review/damage-hearts.png` gerada e inspecionada. Sem partida manual em janela nativa.
+
 ### Poderes e melhorias — solicitação de 2026-11-01
 
 | Etapa | Status | Entrega |
